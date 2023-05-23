@@ -1,0 +1,115 @@
+<?xml version="1.0"?>
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+  <table name="perspective_novaposhta_catalog_warehouse_types" resource="default" engine="innodb" comment="Warehouse types">
+    <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="Entity Id"/>
+    <column xsi:type="varchar" name="ref" nullable="true" length="255" comment="ref"/>
+    <column xsi:type="longtext" name="description_ua" nullable="true" comment="description_ua"/>
+    <column xsi:type="longtext" name="description_ru" nullable="true" comment="description_ru"/>
+    <constraint xsi:type="primary" referenceId="PRIMARY">
+      <column name="id"/>
+    </constraint>
+  </table>
+  <table name="perspective_novaposhta_catalog_package_types" resource="default" engine="innodb" comment="Package types">
+    <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="Entity Id"/>
+    <column xsi:type="varchar" name="ref" nullable="true" length="255" comment="ref"/>
+    <column xsi:type="longtext" name="description_ua" nullable="true" comment="description_ua"/>
+    <column xsi:type="longtext" name="description_ru" nullable="true" comment="description_ru"/>
+    <column xsi:type="longtext" name="length" nullable="true" comment="length"/>
+    <column xsi:type="longtext" name="width" nullable="true" comment="width"/>
+    <column xsi:type="longtext" name="height" nullable="true" comment="height"/>
+    <constraint xsi:type="primary" referenceId="PRIMARY">
+      <column name="id"/>
+    </constraint>
+  </table>
+  <table name="perspective_novaposhta_catalog_warehouse" resource="default" engine="innodb" comment="Warehouses from api">
+    <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="Entity Id"/>
+    <column xsi:type="longtext" name="site_key" nullable="true" comment="site_key"/>
+    <column xsi:type="longtext" name="description_ua" nullable="true" comment="description_ua"/>
+    <column xsi:type="longtext" name="description_ru" nullable="true" comment="description_ru"/>
+    <column xsi:type="longtext" name="short_address_ua" nullable="true" comment="short_address_ua"/>
+    <column xsi:type="longtext" name="short_address_ru" nullable="true" comment="short_address_ru"/>
+    <column xsi:type="longtext" name="phone" nullable="true" comment="phone"/>
+    <column xsi:type="varchar" name="type_of_warehouse" nullable="true" length="255" comment="type_of_warehouse"/>
+    <column xsi:type="longtext" name="ref" nullable="true" comment="ref"/>
+    <column xsi:type="longtext" name="number_in_city" nullable="true" comment="number_in_city"/>
+    <column xsi:type="varchar" name="city_ref" nullable="false" length="255" comment="city_ref"/>
+    <column xsi:type="longtext" name="city_description_ua" nullable="true" comment="city_description_ua"/>
+    <column xsi:type="longtext" name="city_description_ru" nullable="true" comment="city_description_ru"/>
+    <column xsi:type="longtext" name="settlement_ref" nullable="true" comment="settlement_ref"/>
+    <column xsi:type="longtext" name="settlement_description" nullable="true" comment="settlement_description"/>
+    <column xsi:type="longtext" name="settlement_area_description" nullable="true" comment="settlement_area_description"/>
+    <column xsi:type="longtext" name="settlement_region_description" nullable="true" comment="settlement_region_description"/>
+    <column xsi:type="longtext" name="settlement_type_description" nullable="true" comment="settlement_type_description"/>
+    <column xsi:type="longtext" name="longitude" nullable="true" comment="longitude"/>
+    <column xsi:type="longtext" name="latitude" nullable="true" comment="latitude"/>
+    <column xsi:type="longtext" name="post_finance" nullable="true" comment="post_finance"/>
+    <column xsi:type="longtext" name="bicycle_parking" nullable="true" comment="bicycle_parking"/>
+    <column xsi:type="longtext" name="payment_access" nullable="true" comment="payment_access"/>
+    <column xsi:type="longtext" name="pos_terminal" nullable="true" comment="pos_terminal"/>
+    <column xsi:type="longtext" name="international_shipping" nullable="true" comment="international_shipping"/>
+    <column xsi:type="longtext" name="total_max_weigh_tallowed" nullable="true" comment="total_max_weigh_tallowed"/>
+    <column xsi:type="longtext" name="place_max_weight_allowed" nullable="true" comment="place_max_weight_allowed"/>
+    <column xsi:type="longtext" name="reception" nullable="true" comment="reception"/>
+    <column xsi:type="longtext" name="delivery" nullable="true" comment="delivery"/>
+    <column xsi:type="longtext" name="schedule" nullable="true" comment="schedule"/>
+    <column xsi:type="longtext" name="district_code" nullable="true" comment="district_code"/>
+    <column xsi:type="longtext" name="warehouse_status" nullable="true" comment="warehouse_status"/>
+    <column xsi:type="longtext" name="category_of_warehouse" nullable="true" comment="category_of_warehouse"/>
+    <constraint xsi:type="primary" referenceId="PRIMARY">
+      <column name="id"/>
+    </constraint>
+    <index referenceId="PERSPECTIVE_NOVAPOSHTA_CATALOG_WAREHOUSE_CITY_REF" indexType="btree">
+      <column name="city_ref"/>
+    </index>
+  </table>
+  <table name="perspective_novaposhta_catalog_cities" resource="default" engine="innodb" comment="Cities from warehouse">
+    <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="Entity Id"/>
+    <column xsi:type="longtext" name="descriptionua" nullable="true" comment="descriptionua"/>
+    <column xsi:type="longtext" name="descriptionru" nullable="true" comment="descriptionru"/>
+    <column xsi:type="varchar" name="ref" nullable="false" length="255" comment="ref"/>
+    <column xsi:type="longtext" name="delivery_1" nullable="true" comment="delivery_1"/>
+    <column xsi:type="longtext" name="delivery_2" nullable="true" comment="delivery_2"/>
+    <column xsi:type="longtext" name="delivery_3" nullable="true" comment="delivery_3"/>
+    <column xsi:type="longtext" name="delivery_4" nullable="true" comment="delivery_4"/>
+    <column xsi:type="longtext" name="delivery_5" nullable="true" comment="delivery_5"/>
+    <column xsi:type="longtext" name="delivery_6" nullable="true" comment="delivery_6"/>
+    <column xsi:type="longtext" name="delivery_7" nullable="true" comment="delivery_7"/>
+    <column xsi:type="longtext" name="area" nullable="true" comment="area"/>
+    <column xsi:type="longtext" name="settlement_type" nullable="true" comment="settlement_type"/>
+    <column xsi:type="longtext" name="is_branch" nullable="true" comment="is_branch"/>
+    <column xsi:type="longtext" name="prevent_entry_new_streets_user" nullable="true" comment="prevent_entry_new_streets_user"/>
+    <column xsi:type="longtext" name="conglomerates" nullable="true" comment="conglomerates"/>
+      <column xsi:type="int" name="city_id" padding="10" unsigned="true" nullable="true" identity="false"
+              comment="city_id"/>
+      <column xsi:type="longtext" name="settlement_type_description_ru" nullable="true"
+              comment="settlement_type_description_ru"/>
+      <column xsi:type="longtext" name="settlement_type_description_ua" nullable="true"
+              comment="settlement_type_description_ua"/>
+      <constraint xsi:type="primary" referenceId="PRIMARY">
+          <column name="id"/>
+      </constraint>
+      <index referenceId="PERSPECTIVE_NOVAPOSHTA_CATALOG_CITIES_REF" indexType="btree">
+          <column name="ref"/>
+      </index>
+  </table>
+    <table name="perspective_novaposhta_catalog_street" resource="default" engine="innodb"
+           comment="NovaPoshta Street entity">
+        <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true"
+                comment="Street Id Column"/>
+        <column xsi:type="varchar" name="ref" nullable="false" length="255" comment="Street Identifier"/>
+        <column xsi:type="varchar" name="description" nullable="false" length="255" comment="Street Name"/>
+        <column xsi:type="varchar" name="street_type_ref" nullable="false" length="255"
+                comment="Street Type Ref Column"/>
+        <column xsi:type="varchar" name="street_type" nullable="false" length="255" comment="Street Type Column"/>
+        <column xsi:type="varchar" name="city_ref" nullable="false" length="255" comment="City Ref Column"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="id"/>
+        </constraint>
+        <index referenceId="PERSPECTIVE_NOVAPOSHTA_CATALOG_STREET_ID_IDX" indexType="btree">
+            <column name="id"/>
+        </index>
+        <index referenceId="PERSPECTIVE_NOVAPOSHTA_CATALOG_STREET_CITY_REF" indexType="btree">
+            <column name="city_ref"/>
+        </index>
+    </table>
+</schema>

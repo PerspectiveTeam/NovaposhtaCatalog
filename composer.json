@@ -1,0 +1,40 @@
+{
+  "name": "perspective/module-novaposhtacatalog",
+  "description": "",
+  "type": "magento2-module",
+  "license": "proprietary",
+  "version": "2.4.5.4",
+  "authors": [
+    {
+      "name": "MonteShot",
+      "email": "faqreg@gmail.com"
+    }
+  ],
+  "require": {
+    "php": "~7.4.0 || ~8.1",
+    "magento/framework": "*",
+    "magento/module-catalog": "*",
+    "magento/module-checkout": "*",
+    "magento/module-config": "*",
+    "magento/module-customer": "*",
+    "magento/module-developer": "*",
+    "magento/module-eav": "*",
+    "magento/module-payment": "*",
+    "magento/module-quote": "*",
+    "magento/module-sales": "*",
+    "magento/module-store": "*",
+    "ext-curl": "*",
+    "ext-json": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Perspective\\NovaposhtaCatalog\\": ""
+    },
+    "files": [
+      "registration.php"
+    ]
+  }
+}

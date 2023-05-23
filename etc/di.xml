@@ -1,0 +1,190 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <preference for="Perspective\NovaposhtaCatalog\Api\CityRepositoryInterface"
+                type="Perspective\NovaposhtaCatalog\Model\CityRepository" />
+    <preference for="Perspective\NovaposhtaCatalog\Api\WarehouseRepositoryInterface"
+                type="Perspective\NovaposhtaCatalog\Model\WarehouseRepository" />
+    <preference for="Perspective\NovaposhtaCatalog\Api\Data\StreetInterface"
+                type="Perspective\NovaposhtaCatalog\Model\Street\Street"/>
+    <preference for="Perspective\NovaposhtaCatalog\Api\StreetRepositoryInterface"
+                type="Perspective\NovaposhtaCatalog\Model\StreetRepository"/>
+    <preference for="Perspective\NovaposhtaCatalog\Api\Data\StreetSearchResultsInterface"
+                type="Magento\Framework\Api\SearchResults"/>
+    <preference for="Perspective\NovaposhtaCatalog\Api\Data\CitySearchResultsInterface"
+                type="Magento\Framework\Api\SearchResults"/>
+    <preference for="Perspective\NovaposhtaCatalog\Api\Data\WarehouseSearchResultsInterface"
+                type="Magento\Framework\Api\SearchResults"/>
+    <virtualType name="Perspective\NovaposhtaCatalog\Update\Schedule" type="Perspective\NovaposhtaCatalog\Block\System\Config\Collect">
+        <arguments>
+            <argument name="actionUrl" xsi:type="string">novaposhtacatalog/sync/schedule</argument>
+            <argument name="buttonName" translatable="true" xsi:type="string">Schedule update</argument>
+            <argument name="buttonComment" translatable="true" xsi:type="string">Schedule update of Novaposhta catalog</argument>
+            <argument name="template" xsi:type="string">Perspective_NovaposhtaCatalog::system/config/collect.phtml</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\Update\Warehouse" type="Perspective\NovaposhtaCatalog\Block\System\Config\Collect">
+        <arguments>
+            <argument name="actionUrl" xsi:type="string">novaposhtacatalog/sync/warehouse</argument>
+            <argument name="buttonName" translatable="true" xsi:type="string">Update warehouse list</argument>
+            <argument name="buttonComment" translatable="true" xsi:type="string">Gets update of Novaposhta warehouses</argument>
+            <argument name="template" xsi:type="string">Perspective_NovaposhtaCatalog::system/config/collect.phtml</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\Update\WarehouseTypes" type="Perspective\NovaposhtaCatalog\Block\System\Config\Collect">
+        <arguments>
+            <argument name="actionUrl" xsi:type="string">novaposhtacatalog/sync/warehousetype</argument>
+            <argument name="buttonName" translatable="true" xsi:type="string">Update warehouse types list</argument>
+            <argument name="buttonComment" translatable="true" xsi:type="string">Gets update of Novaposhta warehouse types</argument>
+            <argument name="template" xsi:type="string">Perspective_NovaposhtaCatalog::system/config/collect.phtml</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\Update\PackageTypes" type="Perspective\NovaposhtaCatalog\Block\System\Config\Collect">
+        <arguments>
+            <argument name="actionUrl" xsi:type="string">novaposhtacatalog/sync/package</argument>
+            <argument name="buttonName" translatable="true" xsi:type="string">Update package types list</argument>
+            <argument name="buttonComment" translatable="true" xsi:type="string">Gets update of Novaposhta package types</argument>
+            <argument name="template" xsi:type="string">Perspective_NovaposhtaCatalog::system/config/collect.phtml</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\Update\Cities" type="Perspective\NovaposhtaCatalog\Block\System\Config\Collect">
+        <arguments>
+            <argument name="actionUrl" xsi:type="string">novaposhtacatalog/sync/city</argument>
+            <argument name="buttonName" translatable="true" xsi:type="string">Update cities list</argument>
+            <argument name="buttonComment" translatable="true" xsi:type="string">Gets update of Novaposhta cities catalog</argument>
+            <argument name="template" xsi:type="string">Perspective_NovaposhtaCatalog::system/config/collect.phtml</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\Update\Streets" type="Perspective\NovaposhtaCatalog\Block\System\Config\Collect">
+        <arguments>
+            <argument name="actionUrl" xsi:type="string">novaposhtacatalog/sync/streets</argument>
+            <argument name="buttonName" translatable="true" xsi:type="string">Update cities streets list</argument>
+            <argument name="buttonComment" translatable="true" xsi:type="string">Gets update of Novaposhta cities streets catalog</argument>
+            <argument name="template" xsi:type="string">Perspective_NovaposhtaCatalog::system/config/collect.phtml</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\View\Grid\Warehouses" type="Perspective\NovaposhtaCatalog\Block\System\Config\Collect">
+        <arguments>
+            <argument name="actionUrl" xsi:type="string">novaposhtacatalog/view/warehousedata</argument>
+            <argument name="buttonName" translatable="true" xsi:type="string">View List Of Warehouses</argument>
+            <argument name="buttonComment" translatable="true" xsi:type="string">View List Of Warehouses</argument>
+            <argument name="template" xsi:type="string">Perspective_NovaposhtaCatalog::system/config/redirect.phtml</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\View\Grid\WarehouseTypes" type="Perspective\NovaposhtaCatalog\Block\System\Config\Collect">
+        <arguments>
+            <argument name="actionUrl" xsi:type="string">novaposhtacatalog/view/warehousetypesdata</argument>
+            <argument name="buttonName" translatable="true" xsi:type="string">View List Of Warehouse Types</argument>
+            <argument name="buttonComment" translatable="true" xsi:type="string">View List Of Warehouse Types</argument>
+            <argument name="template" xsi:type="string">Perspective_NovaposhtaCatalog::system/config/redirect.phtml</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\View\Grid\Streets" type="Perspective\NovaposhtaCatalog\Block\System\Config\Collect">
+        <arguments>
+            <argument name="actionUrl" xsi:type="string">novaposhtacatalog/view/streetsdata</argument>
+            <argument name="buttonName" translatable="true" xsi:type="string">View List Of Streets</argument>
+            <argument name="buttonComment" translatable="true" xsi:type="string">View List Of Streets</argument>
+            <argument name="template" xsi:type="string">Perspective_NovaposhtaCatalog::system/config/redirect.phtml</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\View\Grid\PackageTypes" type="Perspective\NovaposhtaCatalog\Block\System\Config\Collect">
+        <arguments>
+            <argument name="actionUrl" xsi:type="string">novaposhtacatalog/view/packagetypesdata</argument>
+            <argument name="buttonName" translatable="true" xsi:type="string">View List Of Package Types</argument>
+            <argument name="buttonComment" translatable="true" xsi:type="string">View List Of Package Types</argument>
+            <argument name="template" xsi:type="string">Perspective_NovaposhtaCatalog::system/config/redirect.phtml</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\View\Grid\Cities" type="Perspective\NovaposhtaCatalog\Block\System\Config\Collect">
+        <arguments>
+            <argument name="actionUrl" xsi:type="string">novaposhtacatalog/view/citydata</argument>
+            <argument name="buttonName" translatable="true" xsi:type="string">View List Of Cities</argument>
+            <argument name="buttonComment" translatable="true" xsi:type="string">View List Of Cities</argument>
+            <argument name="template" xsi:type="string">Perspective_NovaposhtaCatalog::system/config/redirect.phtml</argument>
+        </arguments>
+    </virtualType>
+
+    <type name="Magento\Framework\View\Element\UiComponent\DataProvider\CollectionFactory">
+        <arguments>
+            <argument name="collections" xsi:type="array">
+                <item name="warehouses_list_data_source" xsi:type="string">Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\Collection</item>
+                <item name="warehouse_types_list_data_source" xsi:type="string">Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\WarehouseTypes\Collection</item>
+                <item name="streets_list_data_source" xsi:type="string">Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street\Collection</item>
+                <item name="package_types_list_data_source" xsi:type="string">Perspective\NovaposhtaCatalog\Model\ResourceModel\Package\Package\Collection</item>
+                <item name="city_list_data_source" xsi:type="string">Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\Collection</item>
+            </argument>
+        </arguments>
+    </type>
+    <!--    Warehouse grid-->
+    <type name="Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\Grid">
+        <arguments>
+            <argument name="collection" xsi:type="object" shared="false">Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\Collection</argument>
+        </arguments>
+    </type>
+    <!--    Warehouse grid-->
+    <!--    Streets grid-->
+    <type name="Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street\Grid">
+        <arguments>
+            <argument name="collection" xsi:type="object" shared="false">Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street\Collection</argument>
+        </arguments>
+    </type>
+    <!--    Streets grid-->
+    <!--    Package types grid-->
+    <type name="Perspective\NovaposhtaCatalog\Model\ResourceModel\Package\Package\Grid">
+        <arguments>
+            <argument name="collection" xsi:type="object" shared="false">Perspective\NovaposhtaCatalog\Model\ResourceModel\Package\Package\Collection</argument>
+        </arguments>
+    </type>
+    <!--    Package types grid-->
+    <!--    City grid-->
+    <type name="Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\Grid">
+        <arguments>
+            <argument name="collection" xsi:type="object" shared="false">Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\Collection</argument>
+        </arguments>
+    </type>
+    <!--    City grid-->
+    <!--    Warehouse types grid-->
+    <type name="Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\WarehouseTypes\Grid">
+        <arguments>
+            <argument name="collection" xsi:type="object" shared="false">Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\WarehouseTypes\Collection</argument>
+        </arguments>
+    </type>
+    <!--    Warehouse types grid-->
+    <type name="Perspective\NovaposhtaCatalog\Cron\Sync\SyncAll">
+        <arguments>
+            <argument name="entityToUpdate" xsi:type="array">
+                <item name="warehouse_types" xsi:type="object">Perspective\NovaposhtaCatalog\Cron\Sync\WarehouseType</item>
+                <item name="packages" xsi:type="object">Perspective\NovaposhtaCatalog\Cron\Sync\Package</item>
+                <item name="cities" xsi:type="object">Perspective\NovaposhtaCatalog\Cron\Sync\City</item>
+                <item name="warehouses" xsi:type="object">Perspective\NovaposhtaCatalog\Cron\Sync\Warehouse</item>
+                <item name="streets" xsi:type="object">Perspective\NovaposhtaCatalog\Cron\Sync\Streets</item>
+            </argument>
+        </arguments>
+    </type>
+    <type name="Perspective\NovaposhtaCatalog\Model\Update\Package">
+        <arguments>
+            <argument xsi:type="object" name="serializer">Perspective\NovaposhtaCatalog\Service\JsonAsObject</argument>
+        </arguments>
+    </type>
+    <type name="Perspective\NovaposhtaCatalog\Model\Update\City">
+        <arguments>
+            <argument xsi:type="object" name="serializer">Perspective\NovaposhtaCatalog\Service\JsonAsObject</argument>
+        </arguments>
+    </type>
+    <type name="Perspective\NovaposhtaCatalog\Model\Update\Warehouse">
+        <arguments>
+            <argument xsi:type="object" name="serializer">Perspective\NovaposhtaCatalog\Service\JsonAsObject</argument>
+            <argument xsi:type="object" name="serializerToArray">\Magento\Framework\Serialize\Serializer\Json</argument>
+        </arguments>
+    </type>
+    <type name="Perspective\NovaposhtaCatalog\Model\Update\WarehouseType">
+        <arguments>
+            <argument xsi:type="object" name="serializer">Perspective\NovaposhtaCatalog\Service\JsonAsObject</argument>
+        </arguments>
+    </type>
+    <type name="Perspective\NovaposhtaCatalog\Service\HTTP\Post">
+        <arguments>
+            <argument name="asyncClient" xsi:type="object">Perspective\NovaposhtaCatalog\Service\HTTP\AsyncClient\GuzzleAsyncClient</argument>
+        </arguments>
+    </type>
+</config>

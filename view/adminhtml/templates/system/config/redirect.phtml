@@ -1,0 +1,27 @@
+<?php /* @var $block \Perspective\NovaposhtaCatalog\Block\System\Config\Collect */ ?>
+<?php /* @var $escaper \Magento\Framework\Escaper */ ?>
+<script>
+    require([
+        'jquery',
+        'prototype'
+    ], function (jQuery) {
+
+        var collectSpan = jQuery("#collect_span_<?= $escaper->escapeHtmlAttr($block->getTranstlitedName())?>");
+        jQuery("#<?= $escaper->escapeHtmlAttr($block->getTranstlitedName())?>").click(function () {
+            collectSpan.find('.collected').hide();
+            collectSpan.find('.processing').show();
+            jQuery("#message_span_<?=$escaper->escapeHtmlAttr($block->getTranstlitedName())?>").text('Redirecting');
+            window.location =  "<?= $escaper->escapeUrl($block->getAjaxUrl()) ?>";
+        });
+    });
+</script>
+
+<?= $block->getButtonHtml() ?>
+<br/>
+<span class="collect-indicator" id="collect_span_<?=$escaper->escapeHtmlAttr($block->getTranstlitedName()) ?>">
+    <img class="processing" hidden="hidden" alt="Collecting" style="margin:0 5px"
+         src="<?= $escaper->escapeUrl($block->getViewFileUrl('images/process_spinner.gif')) ?>"/>
+    <img class="collected" hidden="hidden" alt="Collected" style="margin:-3px 5px"
+         src="<?= $escaper->escapeUrl($block->getViewFileUrl('images/rule_component_apply.gif')) ?>"/>
+    <span id="message_span_<?= $escaper->escapeHtmlAttr($block->getTranstlitedName()) ?>"></span>
+</span>

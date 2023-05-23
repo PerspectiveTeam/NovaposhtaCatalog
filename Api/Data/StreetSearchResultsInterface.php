@@ -1,0 +1,21 @@
+<?php
+declare(strict_types=1);
+
+namespace Perspective\NovaposhtaCatalog\Api\Data;
+
+interface StreetSearchResultsInterface extends \Magento\Framework\Api\SearchResultsInterface
+{
+
+    /**
+     * Get Street list.
+     * @return \Perspective\NovaposhtaCatalog\Api\Data\StreetInterface[]
+     */
+    public function getItems();
+
+    /**
+     * Set test list.
+     * @param \Perspective\NovaposhtaCatalog\Api\Data\StreetInterface[] $items
+     * @return $this
+     */
+    public function setItems(array $items);
+}

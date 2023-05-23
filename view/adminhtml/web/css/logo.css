@@ -1,0 +1,15 @@
+.config-nav-block.perspective-tab strong:before {
+    height: 20px;
+    width: 30px;
+    content: '';
+    display: inline-block;
+    background: url(../images/logo.png) no-repeat;
+    background-size: contain;
+    vertical-align: text-bottom;
+}
+.config-nav-block.perspective-tab strong:after {
+    top: 2.5rem !important;
+}
+#menu-perspective-core-top-level > a:before {
+    content: url('../images/logo.svg');
+}

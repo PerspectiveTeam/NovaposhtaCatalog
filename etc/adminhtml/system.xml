@@ -1,0 +1,192 @@
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <tab id="perspective" translate="label" class="perspective-tab">
+            <label>Perspective Studio</label>
+        </tab>
+        <section id="novaposhta_catalog"
+                 translate="label"
+                 type="text"
+                 sortOrder="320"
+                 showInDefault="1"
+                 showInWebsite="1"
+                 showInStore="1">
+            <tab>perspective</tab>
+            <class>separator-top</class>
+            <label>Nova Poshta Catalog</label>
+            <resource>Perspective_NovaposhtaCatalog::NovaposhtaCatalog</resource>
+            <group id="catalog" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="0"
+                   showInStore="1">
+                <label>General settings</label>
+                <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="0"
+                       showInStore="0">
+                    <label>Enabled</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+
+                <field id="apikey" translate="label" type="text" sortOrder="3" showInDefault="1" showInWebsite="0"
+                       showInStore="0">
+                    <label>API key</label>
+                    <comment>https://my.novaposhta.ua/settings/index#apikeys</comment>
+                    <depends>
+                        <field id="active">1</field>
+                    </depends>
+                </field>
+            </group>
+            <group id="sync" translate="label" type="text" sortOrder="1" showInDefault="0" showInWebsite="0"
+                   showInStore="1">
+                <label>Manual update. Not recommended to use. See Schedule Group on Default Config Level</label>
+                <field id="update_warehouse_types" translate="label" type="button" sortOrder="3" showInDefault="1"
+                       showInWebsite="0" showInStore="1">
+                    <label>Schedule the update of warehouse types</label>
+                    <depends>
+                        <field id="active">1</field>
+                    </depends>
+                    <frontend_model>Perspective\NovaposhtaCatalog\Update\WarehouseTypes</frontend_model>
+                    <comment>Must be used first</comment>
+                </field>
+                <field id="update_package_types" translate="label" type="button" sortOrder="3" showInDefault="1"
+                       showInWebsite="0" showInStore="1">
+                    <label>Schedule the update of package types</label>
+                    <depends>
+                        <field id="active">1</field>
+                    </depends>
+                    <frontend_model>Perspective\NovaposhtaCatalog\Update\PackageTypes</frontend_model>
+                    <comment>Must be up-to-date if you use NovaposhtaShipping Module</comment>
+                </field>
+                <field id="update_warehouses" translate="label" type="button" sortOrder="3" showInDefault="1"
+                       showInWebsite="0" showInStore="1">
+                    <label>Schedule the update of warehouse</label>
+                    <depends>
+                        <field id="active">1</field>
+                    </depends>
+                    <frontend_model>Perspective\NovaposhtaCatalog\Update\Warehouse</frontend_model>
+                    <comment>Must be used after scheduled the updating of warehouse types list</comment>
+                </field>
+                <field id="update_cities" translate="label" type="button" sortOrder="3" showInDefault="1"
+                       showInWebsite="0" showInStore="1">
+                    <label>Schedule the update of cities</label>
+                    <depends>
+                        <field id="active">1</field>
+                    </depends>
+                    <frontend_model>Perspective\NovaposhtaCatalog\Update\Cities</frontend_model>
+                    <comment>Can be used anytime</comment>
+                </field>
+                <field id="update_cities_streets" translate="label" type="button" sortOrder="3" showInDefault="1"
+                       showInWebsite="0" showInStore="1">
+                    <label>Schedule the update  of cities streets</label>
+                    <depends>
+                        <field id="active">1</field>
+                    </depends>
+                    <frontend_model>Perspective\NovaposhtaCatalog\Update\Streets</frontend_model>
+                    <comment>Can be used after cities list update</comment>
+                </field>
+            </group>
+            <group id="view" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="1"
+                   showInStore="0">
+                <label>View Lists</label>
+                <field id="view_list_of_warehouses" translate="label" type="button" sortOrder="3" showInDefault="1"
+                       showInWebsite="0" showInStore="0">
+                    <label>View list of warehouse</label>
+                    <depends>
+                        <field id="active">1</field>
+                    </depends>
+                    <frontend_model>Perspective\NovaposhtaCatalog\View\Grid\Warehouses</frontend_model>
+                </field>
+                <field id="view_list_of_warehouse_types" translate="label" type="button" sortOrder="3" showInDefault="1"
+                       showInWebsite="0" showInStore="0">
+                    <label>View list of warehouse types</label>
+                    <depends>
+                        <field id="active">1</field>
+                    </depends>
+                    <frontend_model>Perspective\NovaposhtaCatalog\View\Grid\WarehouseTypes</frontend_model>
+                </field>
+                <field id="view_list_of_streets" translate="label" type="button" sortOrder="3" showInDefault="1"
+                       showInWebsite="0" showInStore="0">
+                    <label>View list of streets</label>
+                    <depends>
+                        <field id="active">1</field>
+                    </depends>
+                    <frontend_model>Perspective\NovaposhtaCatalog\View\Grid\Streets</frontend_model>
+                </field>
+                <field id="view_list_of_package_types" translate="label" type="button" sortOrder="3" showInDefault="1"
+                       showInWebsite="0" showInStore="0">
+                    <label>View list of package types</label>
+                    <depends>
+                        <field id="active">1</field>
+                    </depends>
+                    <frontend_model>Perspective\NovaposhtaCatalog\View\Grid\PackageTypes</frontend_model>
+                </field>
+                <field id="view_list_of_city" translate="label" type="button" sortOrder="3" showInDefault="1"
+                       showInWebsite="0" showInStore="0">
+                    <label>View list of cities</label>
+                    <depends>
+                        <field id="active">1</field>
+                    </depends>
+                    <frontend_model>Perspective\NovaposhtaCatalog\View\Grid\Cities</frontend_model>
+                </field>
+            </group>
+            <group id="schedule" translate="label" type="text" sortOrder="3" showInDefault="1" showInWebsite="0" showInStore="0">
+                <label>Schedule</label>
+                <field id="enabled" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Enable Scheduled Synchronization</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="schedule_new_updating" translate="label" type="button" sortOrder="3" showInDefault="1"
+                       showInWebsite="0" showInStore="0">
+                    <label>Schedule the update of Nova Poshta Data</label>
+                    <depends>
+                        <field id="novaposhta_catalog/general/enabled">1</field>
+                        <field id="novaposhta_catalog/schedule/enabled">1</field>
+                    </depends>
+                    <frontend_model>Perspective\NovaposhtaCatalog\Update\Schedule</frontend_model>
+                    <comment>Schedules new cron job which retrieve data from Nova Poshta. Cron must be work</comment>
+                </field>
+                <field id="time" translate="label" type="time" sortOrder="30" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Start Time</label>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="frequency" translate="label" type="select" sortOrder="40" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Frequency</label>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                    <source_model>Perspective\NovaposhtaCatalog\Model\Config\Source\Frequency</source_model>
+                    <backend_model>Perspective\NovaposhtaCatalog\Model\Config\Backend\Cron</backend_model>
+                </field>
+                <field id="last_sync_city" translate="label" type="label" sortOrder="50" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Last Cities Synchronization</label>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="last_sync_warehouse_types" translate="label" type="label" sortOrder="60" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Last Warehouse Types Synchronization</label>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="last_sync_package_types" translate="label" type="label" sortOrder="70" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Last Package Types Synchronization</label>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="last_sync_warehouse" translate="label" type="label" sortOrder="80" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Last Warehouse Synchronization</label>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+                <field id="last_sync_streets" translate="label" type="label" sortOrder="90" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Last Streets Synchronization</label>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>
