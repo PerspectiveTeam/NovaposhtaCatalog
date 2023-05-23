@@ -1,7 +1,6 @@
 ## Perspective Novaposhta Catalog 
 
-### Install this package from BitBucket
-To install this package from BitBucket, use the following steps:
+### Install this package use the following steps:
 
 1. Go to Magento 2 root directory.  
    1. For Magento 2 (from 2.4.5+) and direct installation from B use following command enter the following commands:  
