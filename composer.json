@@ -1,9 +1,9 @@
 {
-  "name": "perspective/module-novaposhtacatalog",
+  "name": "perspectiveteam/module-novaposhtacatalog",
   "description": "",
   "type": "magento2-module",
-  "license": "proprietary",
-  "version": "2.4.5.4",
+  "license": "MIT",
+  "version": "2.4.5.5",
   "authors": [
     {
       "name": "MonteShot",
@@ -11,7 +11,7 @@
     }
   ],
   "require": {
-    "php": "~7.4.0 || ~8.1",
+    "php": "~7.4.0 || ~8.1 || ~8.2",
     "magento/framework": "*",
     "magento/module-catalog": "*",
     "magento/module-checkout": "*",
