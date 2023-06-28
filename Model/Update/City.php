@@ -15,7 +15,6 @@ use Perspective\NovaposhtaCatalog\Model\City\CityFactory;
 use Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\Collection;
 use Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\CollectionFactory;
 use Psr\Log\LoggerInterface;
-use Zend_Http_Client;
 
 /**
  * Class City
@@ -152,7 +151,7 @@ class City implements UpdateEntityInterface
         $request->setConfig(['maxredirects' => 0, 'timeout' => 60]);
 //        $request->setRawData(utf8_encode(json_encode($params)));
         $request->setRawData(utf8_encode($this->serializer->serialize($params)));
-        return $request->request(Zend_Http_Client::POST)->getBody();
+        return $request->request('POST')->getBody();
     }
 
     /**
