@@ -5,7 +5,7 @@
 1. Go to Magento 2 root directory.  
    1. For Magento 2 (from 2.4.5+) and direct installation from B use following command enter the following commands:  
        ```
-       composer require perspective/module-novaposhtacatalog:"*"  
+       composer require perspectiveteam/module-novaposhtacatalog:"*"  
        ```
 2. Wait while all dependencies are update. 
 3. Make an ordinary setup for the module
