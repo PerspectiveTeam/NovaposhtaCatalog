@@ -14,6 +14,7 @@ use Perspective\NovaposhtaCatalog\Helper\CronSyncDateLastUpdate;
 use Perspective\NovaposhtaCatalog\Model\City\CityFactory;
 use Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\Collection;
 use Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\CollectionFactory;
+use Perspective\NovaposhtaCatalog\Service\HTTP\Post;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -68,6 +69,11 @@ class City implements UpdateEntityInterface
     private SerializerInterface $serializer;
 
     /**
+     * @var \Perspective\NovaposhtaCatalog\Service\HTTP\Post
+     */
+    private Post $postService;
+
+    /**
      * City constructor.
      *
      * @param \Magento\Framework\HTTP\ZendClientFactory $httpClientFactory
@@ -79,6 +85,7 @@ class City implements UpdateEntityInterface
      * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\Collection $cityCollectionResourceModel
      * @param CollectionFactory $cityResourceModelCollectionFactory
      * @param \Psr\Log\LoggerInterface $logger
+     * @param \Perspective\NovaposhtaCatalog\Service\HTTP\Post $postService
      */
     public function __construct(
         ZendClientFactory $httpClientFactory,
@@ -89,7 +96,8 @@ class City implements UpdateEntityInterface
         \Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City $cityResourceModel,
         Collection $cityCollectionResourceModel,
         CollectionFactory $cityResourceModelCollectionFactory,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        Post $postService
     ) {
         $this->cityResourceModelCollectionFactory = $cityResourceModelCollectionFactory;
         $this->cityCollectionResourceModel = $cityCollectionResourceModel;
@@ -100,6 +108,7 @@ class City implements UpdateEntityInterface
         $this->cronSyncDateLastUpdate = $cronSyncDateLastUpdate;
         $this->logger = $logger;
         $this->serializer = $serializer;
+        $this->postService = $postService;
     }
 
     /**
@@ -112,13 +121,11 @@ class City implements UpdateEntityInterface
         $data = [];
         if ($this->configHelper->isEnabled()) {
             $citiesListFromApiEndpoint = $this->getDataFromEndpoint();
-            /** @var \stdClass $cityListJsonDecoded */
-            $cityListJsonDecoded = $this->serializer->unserialize($citiesListFromApiEndpoint);
-            if (property_exists($cityListJsonDecoded, 'success') && $cityListJsonDecoded->success === true) {
+            if (property_exists($citiesListFromApiEndpoint, 'success') && $citiesListFromApiEndpoint->success === true) {
                 try {
                     $error = false;
                     $message = 'In Progress..';
-                    $this->setDataToDB($cityListJsonDecoded->data);
+                    $this->setDataToDB($citiesListFromApiEndpoint->data);
                 } catch (AlreadyExistsException $e) {
                     $error = true;
                     $message = "Key already exist\n" . $e->getMessage();
@@ -140,18 +147,21 @@ class City implements UpdateEntityInterface
 
     /**
      * @inheritDoc
-     * @throws \Zend_Http_Client_Exception
+     * @param mixed ...$params
+     * @throws \Throwable
      */
     public function getDataFromEndpoint(...$params)
     {
-        $apiKey = $this->configHelper->getApiKey();
-        $request = $this->httpClientFactory->create();
-        $request->setUri('https://api.novaposhta.ua/v2.0/json/Address/getCities');
-        $params = ['modelName' => 'Address', 'calledMethod' => 'getCities', 'apiKey' => $apiKey];
-        $request->setConfig(['maxredirects' => 0, 'timeout' => 60]);
-//        $request->setRawData(utf8_encode(json_encode($params)));
-        $request->setRawData(utf8_encode($this->serializer->serialize($params)));
-        return $request->request('POST')->getBody();
+        $paramsForRequest = [
+            'modelName' => 'Address', 'calledMethod' => 'getCities', 'apiKey' => $this->configHelper->getApiKey(),
+        ];
+        $resultFormApi = $this->serializer->unserialize(
+            $this->postService
+                ->execute('Address', 'getCities', $paramsForRequest)
+                ->get()
+                ->getBody()
+        );
+        return $resultFormApi;
     }
 
     /**
