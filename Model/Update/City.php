@@ -1,18 +1,14 @@
 <?php
 
-
 namespace Perspective\NovaposhtaCatalog\Model\Update;
 
 use Exception;
 use Magento\Framework\Exception\AlreadyExistsException;
-use Magento\Framework\HTTP\ZendClientFactory;
-use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\Serialize\SerializerInterface;
 use Perspective\NovaposhtaCatalog\Api\Data\UpdateEntityInterface;
 use Perspective\NovaposhtaCatalog\Helper\Config;
 use Perspective\NovaposhtaCatalog\Helper\CronSyncDateLastUpdate;
 use Perspective\NovaposhtaCatalog\Model\City\CityFactory;
-use Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\Collection;
 use Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\CollectionFactory;
 use Perspective\NovaposhtaCatalog\Service\HTTP\Post;
 use Psr\Log\LoggerInterface;
@@ -23,10 +19,6 @@ use Psr\Log\LoggerInterface;
  */
 class City implements UpdateEntityInterface
 {
-    /**
-     * @var \Magento\Framework\HTTP\ZendClientFactory
-     */
-    protected $httpClientFactory;
 
     /**
      * @var \Perspective\NovaposhtaCatalog\Helper\Config
@@ -42,11 +34,6 @@ class City implements UpdateEntityInterface
      * @var \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse
      */
     protected $cityResourceModel;
-
-    /**
-     * @var \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\Collection
-     */
-    protected $cityCollectionResourceModel;
 
     /**
      * @var \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\CollectionFactory
@@ -76,34 +63,28 @@ class City implements UpdateEntityInterface
     /**
      * City constructor.
      *
-     * @param \Magento\Framework\HTTP\ZendClientFactory $httpClientFactory
      * @param \Perspective\NovaposhtaCatalog\Helper\Config $configHelper
      * @param \Perspective\NovaposhtaCatalog\Helper\CronSyncDateLastUpdate $cronSyncDateLastUpdate
      * @param \Magento\Framework\Serialize\SerializerInterface $serializer
      * @param \Perspective\NovaposhtaCatalog\Model\City\CityFactory $cityFactory
      * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City $cityResourceModel
-     * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\Collection $cityCollectionResourceModel
      * @param CollectionFactory $cityResourceModelCollectionFactory
      * @param \Psr\Log\LoggerInterface $logger
      * @param \Perspective\NovaposhtaCatalog\Service\HTTP\Post $postService
      */
     public function __construct(
-        ZendClientFactory $httpClientFactory,
         Config $configHelper,
         CronSyncDateLastUpdate $cronSyncDateLastUpdate,
         SerializerInterface $serializer,
         CityFactory $cityFactory,
         \Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City $cityResourceModel,
-        Collection $cityCollectionResourceModel,
         CollectionFactory $cityResourceModelCollectionFactory,
         LoggerInterface $logger,
         Post $postService
     ) {
         $this->cityResourceModelCollectionFactory = $cityResourceModelCollectionFactory;
-        $this->cityCollectionResourceModel = $cityCollectionResourceModel;
         $this->cityResourceModel = $cityResourceModel;
         $this->cityFactory = $cityFactory;
-        $this->httpClientFactory = $httpClientFactory;
         $this->configHelper = $configHelper;
         $this->cronSyncDateLastUpdate = $cronSyncDateLastUpdate;
         $this->logger = $logger;
@@ -174,6 +155,9 @@ class City implements UpdateEntityInterface
         $entireTableColl = $this->cityResourceModelCollectionFactory->create();
         $entireIds = $entireTableColl->getAllIds();
         foreach ($data as $idx => $datum) {
+            if (!is_object($datum)) {
+                continue;
+            }
             $filledModel = $this->prepareData($datum);
             /**@var $collection \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\Collection */
             $singleItem = $this->cityFactory->create();

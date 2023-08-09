@@ -1,19 +1,14 @@
 <?php
 
-
 namespace Perspective\NovaposhtaCatalog\Model\Update;
 
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\HTTP\ClientInterfaceFactory;
 use Magento\Framework\Serialize\SerializerInterface;
-use Perspective\CloudShipping\Exceptions\InterruptRequestOnBrockenProductException;
-use Perspective\CloudShipping\Service\HTTP\AsyncClient\Request;
 use Perspective\NovaposhtaCatalog\Api\Data\UpdateEntityInterface;
 use Perspective\NovaposhtaCatalog\Helper\Config;
 use Perspective\NovaposhtaCatalog\Helper\CronSyncDateLastUpdate;
 use Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\WarehouseTypes;
-use Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\WarehouseTypes\Collection;
 use Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\WarehouseTypes\CollectionFactory;
 use Perspective\NovaposhtaCatalog\Model\Warehouse\WarehouseTypesFactory;
 use Perspective\NovaposhtaCatalog\Service\HTTP\Post;
@@ -24,10 +19,6 @@ use Perspective\NovaposhtaCatalog\Service\HTTP\Post;
  */
 class WarehouseType implements UpdateEntityInterface
 {
-    /**
-     * @var \Magento\Framework\HTTP\ClientInterfaceFactory
-     */
-    protected $httpClientFactory;
 
     /**
      * @var \Perspective\NovaposhtaCatalog\Helper\Config
@@ -50,19 +41,9 @@ class WarehouseType implements UpdateEntityInterface
     protected $lang = 'ua';
 
     /**
-     * @var \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\WarehouseTypes\Collection
-     */
-    protected $warehouseTypesResourceModelCollection;
-
-    /**
      * @var \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\WarehouseTypes\CollectionFactory
      */
     protected $warehouseTypesResourceModelCollectionFactory;
-
-    /**
-     * @var \Magento\Framework\Controller\Result\JsonFactory
-     */
-    protected $resultJsonFactory;
 
     /**
      * @var \Perspective\NovaposhtaCatalog\Helper\CronSyncDateLastUpdate
@@ -74,36 +55,33 @@ class WarehouseType implements UpdateEntityInterface
      */
     private SerializerInterface $serializer;
 
+    /**
+     * @var \Perspective\NovaposhtaCatalog\Service\HTTP\Post
+     */
     private Post $postService;
 
 
     /**
-     * @param \Magento\Framework\HTTP\ClientInterfaceFactory $httpClientFactory
      * @param \Perspective\NovaposhtaCatalog\Helper\Config $configHelper
      * @param \Perspective\NovaposhtaCatalog\Helper\CronSyncDateLastUpdate $cronSyncDateLastUpdate
      * @param \Magento\Framework\Serialize\SerializerInterface $serializer
      * @param \Perspective\NovaposhtaCatalog\Model\Warehouse\WarehouseTypesFactory $warehouseTypesFactory
      * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\WarehouseTypes $warehouseTypesResourceModel
-     * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\WarehouseTypes\Collection $warehouseTypesResourceModelCollection
      * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\WarehouseTypes\CollectionFactory $warehouseTypesResourceModelCollectionFactory
      * @param \Perspective\NovaposhtaCatalog\Service\HTTP\Post $postService
      */
     public function __construct(
-        ClientInterfaceFactory $httpClientFactory,
         Config $configHelper,
         CronSyncDateLastUpdate $cronSyncDateLastUpdate,
         SerializerInterface $serializer,
         WarehouseTypesFactory $warehouseTypesFactory,
         WarehouseTypes $warehouseTypesResourceModel,
-        Collection $warehouseTypesResourceModelCollection,
         CollectionFactory $warehouseTypesResourceModelCollectionFactory,
         Post $postService
     ) {
         $this->warehouseTypesResourceModelCollectionFactory = $warehouseTypesResourceModelCollectionFactory;
-        $this->warehouseTypesResourceModelCollection = $warehouseTypesResourceModelCollection;
         $this->warehouseTypesResourceModel = $warehouseTypesResourceModel;
         $this->warehouseTypesFactory = $warehouseTypesFactory;
-        $this->httpClientFactory = $httpClientFactory;
         $this->configHelper = $configHelper;
         $this->cronSyncDateLastUpdate = $cronSyncDateLastUpdate;
         $this->serializer = $serializer;
@@ -155,9 +133,8 @@ class WarehouseType implements UpdateEntityInterface
     }
 
     /**
-     * @param array $data
+     * @param mixed ...$params
      * @throws \Magento\Framework\Exception\AlreadyExistsException
-     * @throws \Magento\Framework\Exception\LocalizedException
      */
     public function setDataToDB(...$params)
     {
@@ -169,8 +146,6 @@ class WarehouseType implements UpdateEntityInterface
             /**@var $warehouseTypesModel \Perspective\NovaposhtaCatalog\Model\Warehouse\WarehouseTypes */
             $singleItem = $this->warehouseTypesFactory->create();
             $this->warehouseTypesResourceModel->load($singleItem, $filledModel->getRef(), $filledModel::REF);
-            switch ($this->lang) {
-                case "ru":
                     if ($singleItem->getRef()) {
                         $filledModel->setId($singleItem->getId());
                         $this->warehouseTypesResourceModel
@@ -179,18 +154,7 @@ class WarehouseType implements UpdateEntityInterface
                         $this->warehouseTypesResourceModel
                             ->save($filledModel);
                     }
-                    break;
-                case "ua":
-                    if ($singleItem->getRef()) {
-                        $filledModel->setId($singleItem->getId());
-                        $this->warehouseTypesResourceModel
-                            ->save($filledModel);
-                    } else {
-                        $this->warehouseTypesResourceModel
-                            ->save($filledModel);
-                    }
-                    break;
-            }
+
             unset($entireIds[array_search($singleItem->getId(), $entireIds)]);
         }
         if (count($entireIds) > 0) {

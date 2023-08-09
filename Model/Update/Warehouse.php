@@ -5,7 +5,6 @@ namespace Perspective\NovaposhtaCatalog\Model\Update;
 
 use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\Exception\AlreadyExistsException;
-use Magento\Framework\HTTP\ZendClientFactory;
 use Magento\Framework\Serialize\SerializerInterface;
 use Perspective\NovaposhtaCatalog\Api\CityRepositoryInterface;
 use Perspective\NovaposhtaCatalog\Api\Data\UpdateEntityInterface;
@@ -13,19 +12,18 @@ use Perspective\NovaposhtaCatalog\Api\Data\WarehouseInterface;
 use Perspective\NovaposhtaCatalog\Api\WarehouseRepositoryInterface;
 use Perspective\NovaposhtaCatalog\Helper\Config;
 use Perspective\NovaposhtaCatalog\Helper\CronSyncDateLastUpdate;
-use Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\Collection;
-use Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\CollectionFactory;
 use Perspective\NovaposhtaCatalog\Model\Warehouse\WarehouseFactory;
 use Perspective\NovaposhtaCatalog\Service\HTTP\Post;
 
+/**
+ * Class Warehouse
+ */
 class Warehouse implements UpdateEntityInterface
 {
-    const PAGE_SIZE = 100;
-
     /**
-     * @var \Magento\Framework\HTTP\ZendClientFactory
+     * @var string
      */
-    protected $httpClientFactory;
+    const PAGE_SIZE = 100;
 
     /**
      * @var \Perspective\NovaposhtaCatalog\Helper\Config
@@ -43,21 +41,6 @@ class Warehouse implements UpdateEntityInterface
     protected $warehouseResourceModel;
 
     /**
-     * @var \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\Collection
-     */
-    protected $warehouseCollectionResourceModel;
-
-    /**
-     * @var \Magento\Framework\Controller\Result\JsonFactory
-     */
-    protected $resultJsonFactory;
-
-    /**
-     * @var \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\CollectionFactory
-     */
-    protected $warehouseResourceModelCollectionFactory;
-
-    /**
      * @var \Perspective\NovaposhtaCatalog\Helper\CronSyncDateLastUpdate
      */
     private $cronSyncDateLastUpdate;
@@ -67,10 +50,19 @@ class Warehouse implements UpdateEntityInterface
      */
     private SerializerInterface $serializer;
 
+    /**
+     * @var \Perspective\NovaposhtaCatalog\Service\HTTP\Post
+     */
     private Post $postService;
 
+    /**
+     * @var \Perspective\NovaposhtaCatalog\Api\CityRepositoryInterface
+     */
     private CityRepositoryInterface $cityRepository;
 
+    /**
+     * @var \Magento\Framework\Api\SearchCriteriaBuilder
+     */
     private SearchCriteriaBuilder $searchCriteriaBuilder;
 
     /**
@@ -78,45 +70,39 @@ class Warehouse implements UpdateEntityInterface
      */
     private SerializerInterface $serializerToArray;
 
+    /**
+     * @var \Perspective\NovaposhtaCatalog\Api\WarehouseRepositoryInterface
+     */
     private WarehouseRepositoryInterface $warehouseRepository;
 
     /**
      * Warehouse constructor.
      *
-     * @param \Magento\Framework\HTTP\ZendClientFactory $httpClientFactory
      * @param \Perspective\NovaposhtaCatalog\Helper\Config $configHelper
      * @param \Perspective\NovaposhtaCatalog\Helper\CronSyncDateLastUpdate $cronSyncDateLastUpdate
      * @param \Magento\Framework\Serialize\SerializerInterface $serializer
      * @param \Magento\Framework\Serialize\SerializerInterface $serializerToArray
      * @param \Perspective\NovaposhtaCatalog\Model\Warehouse\WarehouseFactory $warehouseFactory
      * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse $warehouseResourceModel
-     * @param Collection $warehouseCollectionResourceModel
-     * @param CollectionFactory $warehouseResourceModelCollectionFactory
      * @param \Perspective\NovaposhtaCatalog\Service\HTTP\Post $postService
      * @param \Perspective\NovaposhtaCatalog\Api\CityRepositoryInterface $cityRepository
      * @param \Magento\Framework\Api\SearchCriteriaBuilder $searchCriteriaBuilder
      * @param \Perspective\NovaposhtaCatalog\Api\WarehouseRepositoryInterface $warehouseRepository
      */
     public function __construct(
-        ZendClientFactory $httpClientFactory,
         Config $configHelper,
         CronSyncDateLastUpdate $cronSyncDateLastUpdate,
         SerializerInterface $serializer,
         SerializerInterface $serializerToArray,
         WarehouseFactory $warehouseFactory,
         \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse $warehouseResourceModel,
-        Collection $warehouseCollectionResourceModel,
-        CollectionFactory $warehouseResourceModelCollectionFactory,
         Post $postService,
         CityRepositoryInterface $cityRepository,
         SearchCriteriaBuilder $searchCriteriaBuilder,
         WarehouseRepositoryInterface $warehouseRepository
     ) {
-        $this->warehouseResourceModelCollectionFactory = $warehouseResourceModelCollectionFactory;
-        $this->warehouseCollectionResourceModel = $warehouseCollectionResourceModel;
         $this->warehouseResourceModel = $warehouseResourceModel;
         $this->warehouseFactory = $warehouseFactory;
-        $this->httpClientFactory = $httpClientFactory;
         $this->configHelper = $configHelper;
         $this->cronSyncDateLastUpdate = $cronSyncDateLastUpdate;
         $this->serializer = $serializer;
@@ -128,9 +114,8 @@ class Warehouse implements UpdateEntityInterface
     }
 
     /**
-     * @inheritDoc
-     * @throws \Zend_Http_Client_Exception
-     * @throws \Magento\Framework\Exception\LocalizedException
+     * @return array
+     * @throws \Throwable
      */
     public function execute()
     {
@@ -148,7 +133,6 @@ class Warehouse implements UpdateEntityInterface
                     try {
                         $error = false;
                         $message = 'In Progress..';
-                        unset($warehouseListJsonDecoded->success);
                         $this->setDataToDb($warehouseListJsonDecoded, $city->getRef());
                     } catch (AlreadyExistsException $e) {
                         $error = true;
@@ -171,8 +155,9 @@ class Warehouse implements UpdateEntityInterface
     }
 
     /**
-     * @return \stdClass
-     * @throws \Zend_Http_Client_Exception
+     * @param ...$params
+     * @return array|bool|float|int|mixed|string|null
+     * @throws \Throwable
      */
     public function getDataFromEndpoint(...$params)
     {
@@ -209,9 +194,8 @@ class Warehouse implements UpdateEntityInterface
     }
 
     /**
-     * @param array $data
+     * @param mixed ...$params
      * @throws \Magento\Framework\Exception\AlreadyExistsException
-     * @throws \Magento\Framework\Exception\LocalizedException
      */
     public function setDataToDb(...$params)
     {
@@ -222,6 +206,9 @@ class Warehouse implements UpdateEntityInterface
         $allIds = $collection->getAllIds();
         $presentedIds = [];
         foreach ($data as $item) {
+            if (!is_object($item)) {
+                continue;
+            }
             $singleItem = $this->warehouseFactory->create();
             $this->warehouseResourceModel->load($singleItem, $item->Ref, WarehouseInterface::REF);
             $filledModel = $this->prepareData($item, $singleItem);
@@ -239,6 +226,7 @@ class Warehouse implements UpdateEntityInterface
 
     /**
      * @param $datum
+     * @param null $warehouseModel
      * @return \Perspective\NovaposhtaCatalog\Model\Warehouse\Warehouse
      */
     public function prepareData($datum, $warehouseModel = null)
@@ -300,6 +288,7 @@ class Warehouse implements UpdateEntityInterface
 
     /**
      * @param string $cityRef
+     * @param int $page
      * @return array
      */
     protected function prepareParamsByCityRefAndPage(string $cityRef, int $page = 1): array
