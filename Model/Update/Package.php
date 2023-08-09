@@ -31,11 +31,6 @@ class Package implements UpdateEntityInterface
     public $packageFactory;
 
     /**
-     * @var \Magento\Framework\HTTP\ZendClientFactory
-     */
-    protected $httpClientFactory;
-
-    /**
      * @var \Perspective\NovaposhtaCatalog\Helper\Config
      */
     protected $configHelper;
@@ -46,29 +41,9 @@ class Package implements UpdateEntityInterface
     protected $lang = 'ua';
 
     /**
-     * @var \Magento\Framework\Controller\Result\JsonFactory
-     */
-    protected $resultJsonFactory;
-
-    /**
      * @var \Perspective\NovaposhtaCatalog\Helper\CronSyncDateLastUpdate
      */
     private $cronSyncDateLastUpdate;
-
-    /**
-     * @var \Magento\Framework\HTTP\Client\Curl
-     */
-    private $curl;
-
-    /**
-     * @var \stdClass
-     */
-    private $jsonParams;
-
-    /**
-     * @var \stdClassFactory
-     */
-    private $stdClassFactory;
 
     /**
      * @var \Perspective\NovaposhtaCatalog\Model\ResourceModel\Package\Package\CollectionFactory
@@ -93,11 +68,8 @@ class Package implements UpdateEntityInterface
     /**
      * Package constructor.
      *
-     * @param ZendClientFactory $httpClientFactory
-     * @param \stdClassFactory $stdClassFactory
      * @param Config $configHelper
      * @param CronSyncDateLastUpdate $cronSyncDateLastUpdate
-     * @param \Magento\Framework\HTTP\Client\Curl $curl
      * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\Package\Package\CollectionFactory $packageTypesResourceModelCollectionFactory
      * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\Package\Package $packageResourceModel
      * @param \Perspective\NovaposhtaCatalog\Model\Package\PackageFactory $packageFactory
@@ -105,22 +77,16 @@ class Package implements UpdateEntityInterface
      * @param \Perspective\NovaposhtaCatalog\Service\HTTP\Post $postService
      */
     public function __construct(
-        ZendClientFactory $httpClientFactory,
-        stdClassFactory $stdClassFactory,
         Config $configHelper,
         CronSyncDateLastUpdate $cronSyncDateLastUpdate,
-        Curl $curl,
         CollectionFactory $packageTypesResourceModelCollectionFactory,
         PackageResourceModel $packageResourceModel,
         PackageFactory $packageFactory,
         SerializerInterface $serializer,
         Post $postService
     ) {
-        $this->httpClientFactory = $httpClientFactory;
         $this->configHelper = $configHelper;
         $this->cronSyncDateLastUpdate = $cronSyncDateLastUpdate;
-        $this->curl = $curl;
-        $this->stdClassFactory = $stdClassFactory;
         $this->packageTypesResourceModelCollectionFactory = $packageTypesResourceModelCollectionFactory;
         $this->packageFactory = $packageFactory;
         $this->packageResourceModel = $packageResourceModel;

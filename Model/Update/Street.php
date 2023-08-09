@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Perspective\NovaposhtaCatalog\Model\Update;
 
-use Magento\Framework\HTTP\ZendClientFactory;
 use Magento\Framework\Serialize\SerializerInterface;
 use Perspective\NovaposhtaCatalog\Api\Data\CityInterface;
 use Perspective\NovaposhtaCatalog\Api\Data\StreetInterface;
@@ -13,6 +12,7 @@ use Perspective\NovaposhtaCatalog\Helper\Config;
 use Perspective\NovaposhtaCatalog\Helper\CronSyncDateLastUpdate;
 use Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\CollectionFactory as CityCollectionFactory;
 use Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street\CollectionFactory as StreetCollectionFactory;
+use Perspective\NovaposhtaCatalog\Service\HTTP\Post;
 
 /**
  * Import Streets from NovaPoshta API
@@ -25,11 +25,25 @@ class Street implements UpdateEntityInterface
      */
     private const API_FIELD_REF = 'Ref';
 
+    /**
+     * @var string
+     */
     private const API_FIELD_DESCRIPTION = 'Description';
 
+    /**
+     * @var string
+     */
     private const API_FIELD_STREETS_TYPE_REF = 'StreetsTypeRef';
 
+    /**
+     * @var string
+     */
     private const API_FIELD_STREETS_TYPE = 'StreetsType';
+
+    /**
+     * @var string
+     */
+    const PAGE_SIZE = 500;
 
     /**
      * @var \Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\CollectionFactory
@@ -52,23 +66,13 @@ class Street implements UpdateEntityInterface
     private $streetResource;
 
     /**
-     * @var \Perspective\NovaposhtaCatalog\Helper\Config
-     */
-    private $configHelper;
-
-    /**
-     * @var \Magento\Framework\HTTP\ZendClientFactory
-     */
-    private $httpClientFactory;
-
-
-    protected bool $requestNotAllowed = false;
-
-    /**
      * @var \Closure|mixed|\Psr\Log\LoggerInterface|null
      */
     private $logger;
 
+    /**
+     * @var \Perspective\NovaposhtaCatalog\Helper\CronSyncDateLastUpdate
+     */
     private CronSyncDateLastUpdate $cronSyncDateLastUpdate;
 
     /**
@@ -77,38 +81,57 @@ class Street implements UpdateEntityInterface
     private SerializerInterface $serializer;
 
     /**
+     * @var \Magento\Framework\Serialize\SerializerInterface
+     */
+    private SerializerInterface $serializerToArray;
+
+    /**
+     * @var \Perspective\NovaposhtaCatalog\Service\HTTP\Post
+     */
+    private Post $postService;
+
+    /**
+     * @var \Perspective\NovaposhtaCatalog\Helper\Config
+     */
+    private Config $configHelper;
+
+    /**
+     * @param \Perspective\NovaposhtaCatalog\Helper\Config $configHelper
      * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\CollectionFactory $cityCollectionFactory
      * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street\CollectionFactory $streetCollectionFactory
      * @param \Perspective\NovaposhtaCatalog\Api\Data\StreetInterfaceFactory $streetFactory
      * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street $streetResource
-     * @param \Perspective\NovaposhtaCatalog\Helper\Config $configHelper
-     * @param \Magento\Framework\HTTP\ZendClientFactory $httpClientFactory
      * @param \Magento\Framework\Serialize\SerializerInterface $serializer
      * @param \Perspective\NovaposhtaCatalog\Helper\CronSyncDateLastUpdate $cronSyncDateLastUpdate
+     * @param \Magento\Framework\Serialize\SerializerInterface $serializerToArray
+     * @param \Perspective\NovaposhtaCatalog\Service\HTTP\Post $postService
      */
     public function __construct(
+        Config $configHelper,
         CityCollectionFactory $cityCollectionFactory,
         StreetCollectionFactory $streetCollectionFactory,
         StreetInterfaceFactory $streetFactory,
         \Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street $streetResource,
-        Config $configHelper,
-        ZendClientFactory $httpClientFactory,
         SerializerInterface $serializer,
-        CronSyncDateLastUpdate $cronSyncDateLastUpdate
+        CronSyncDateLastUpdate $cronSyncDateLastUpdate,
+        SerializerInterface $serializerToArray,
+        Post $postService,
     ) {
 
         $this->cityCollectionFactory = $cityCollectionFactory;
         $this->streetCollectionFactory = $streetCollectionFactory;
         $this->streetFactory = $streetFactory;
         $this->streetResource = $streetResource;
-        $this->configHelper = $configHelper;
-        $this->httpClientFactory = $httpClientFactory;
         $this->cronSyncDateLastUpdate = $cronSyncDateLastUpdate;
         $this->serializer = $serializer;
+        $this->serializerToArray = $serializerToArray;
+        $this->postService = $postService;
+        $this->configHelper = $configHelper;
     }
 
     /**
-     * @param \Closure|null $cl
+     * @return array
+     * @throws \Magento\Framework\Exception\AlreadyExistsException
      */
     public function execute()
     {
@@ -116,20 +139,31 @@ class Street implements UpdateEntityInterface
         $message = "Error has been occur";
         $error = true;
         $data = [];
-
-        foreach ($this->getCityCollection() as $city) {
+        if ($this->configHelper->isEnabled()) {
+            foreach ($this->getCityCollection() as $city) {
             if ($city->getRef() === null) {
                 continue;
             }
             $this->log('Importing for city ' . $city->getRef());
-            $this->setDataToDB($city->getRef());
+
+                $streetsFromNP = $this->getDataFromEndpoint($city->getRef());
+                $preparedStreetsDataFromNP = $this->prepareDataFromNP($streetsFromNP, $city->getRef());
+                if (empty($streetsFromNP)) {
+                    $this->log(__('Street Request error. City has no Streets OR Check API key.'));
+                    continue;
+                }
+
+                $streetsFromDB = $this->getStreetsFromDb($city->getRef());
+
+                $this->setDataToDB($preparedStreetsDataFromNP, $streetsFromDB, $city->getRef());
             $error = false;
             $message = "Successfully synced";
+        }
+            $this->log(__($message));
         }
         if ($error === false) {
             $this->cronSyncDateLastUpdate->updateSyncDate($this->cronSyncDateLastUpdate::XML_PATH_LAST_SYNC_STREETS);
         }
-        $this->log(__($message));
         return [
             'message' => $message,
             'data' => $data,
@@ -151,22 +185,18 @@ class Street implements UpdateEntityInterface
     }
 
     /**
-     * @param string $cityRef
+     * @param mixed ...$params
+     * @throws \Magento\Framework\Exception\AlreadyExistsException
      */
     public function setDataToDB(...$params)
     {
-        $cityRef = $params[0];
-        $streetsFromNP = $this->importStreets($cityRef);
-        if (empty($streetsFromNP)) {
-            $this->log(__('Street Request error. City has no Streets OR Check API key.'));
-            return;
-        }
-
-        $streets = $this->getStreetsFromDb($cityRef);
+        $streetsFromNP = $params[0];
+        $streetsFromDB = $params[1];
+        $cityRef = $params[2];
 
         foreach ($streetsFromNP as $streetFromNP) {
             /** @var StreetInterface|null $street */
-            $street = $streets->getItemByColumnValue(StreetInterface::REF, $streetFromNP->getRef());
+            $street = $streetsFromDB->getItemByColumnValue(StreetInterface::REF, $streetFromNP->getRef());
             if ($street === null) {
                 $this->saveStreet($streetFromNP);
             } else {
@@ -179,92 +209,56 @@ class Street implements UpdateEntityInterface
     }
 
     /**
-     * @param string $cityRef
-     * @return array<StreetInterface>
-     */
-    private function importStreets(string $cityRef): array
-    {
-        $params = $this->prepareRequestParams($cityRef);
-
-        $streetsData = [];
-        try {
-            $dataFromEndpoint = $this->serializer->unserialize($this->getDataFromEndpoint($params));
-        } catch (\InvalidArgumentException $invalidArgumentException) {
-            return $streetsData;
-        }
-
-        $data = $dataFromEndpoint['data'] ?? null;
-        if (!$data) {
-            return $streetsData;
-        }
-
-        foreach ($data as $datum) {
-            /** @var StreetInterface $street */
-            $street = $this->streetFactory->create();
-            $street->setRef($datum[self::API_FIELD_REF])
-                ->setDescription($datum[self::API_FIELD_DESCRIPTION])
-                ->setStreetTypeRef($datum[self::API_FIELD_STREETS_TYPE_REF])
-                ->setStreetType($datum[self::API_FIELD_STREETS_TYPE])
-                ->setCityRef($cityRef);
-            $streetsData[] = $street;
-        }
-
-        return $streetsData;
-    }
-
-    /**
      * @param ...$params
-     * @return bool|mixed|string|null
-     * @throws \Zend_Http_Client_Exception
+     * @return \stdClass
+     * @throws \Throwable
      */
     public function getDataFromEndpoint(...$params)
     {
-        $params = $params[0];
-        $result = $this->serializer->serialize(['no_street_data' => 1]);
-        $this->requestNotAllowed = false;
-        $apiKey = $this->configHelper->getApiKey();
-        $request = $this->httpClientFactory->create();
-        $request->setUri('https://api.novaposhta.ua/v2.0/json/Address/getStreet');
-        $params['apiKey'] = $apiKey;
-        $request->setConfig(['maxredirects' => 0, 'timeout' => 10]);
-        $request->setRawData(utf8_encode($this->serializer->serialize($params)));
-
-        //Новая почта иногда может ответить пустым запросом - спрашиваем 3 раза и пропускаем эту улицу
-        while (!$this->requestNotAllowed) {
-            if (!isset($count)) {
-                $count = 0;
+        $cityRef = $params[0];
+        $paramsForRequest = $this->prepareRequestParams($cityRef);
+        $resultFormApi = $this->serializerToArray->unserialize(
+            $this->postService
+                ->execute('Address', 'getStreet', $paramsForRequest)
+                ->get()
+                ->getBody()
+        );
+        if (isset($resultFormApi['success']) && $resultFormApi['success'] === true) {
+            $cityStreetsArray = $resultFormApi['data'];
+            if ($resultFormApi['info']['totalCount'] > self::PAGE_SIZE) {
+                $pages = ceil($resultFormApi['info']['totalCount'] / self::PAGE_SIZE);
+                for ($i = 2; $i <= $pages; $i++) {
+                    $paramsForRequest = $this->prepareRequestParams($cityRef, $i);
+                    $resultFormApi = $this->serializerToArray->unserialize(
+                        $this->postService
+                            ->execute('Address', 'getStreet', $paramsForRequest)
+                            ->get()
+                            ->getBody()
+                    );
+                    if (isset($resultFormApi['success']) && $resultFormApi['success'] === true) {
+                        $cityStreetsArray = array_merge($cityStreetsArray, $resultFormApi['data']);
+                    }
+                }
             }
-            $count++;
-            if ($count > 1) {
-                sleep(3);
-                $this->log(__('Attempt to get street data number %1', $count), $params);
-            }
-            try {
-                $result = $request->request(\Zend_Http_Client::POST)->getBody();
-            } catch (\Exception $exception) {
-                //do nothing
-                $this->log(__($exception->getMessage()), $params);
-            }
-            if ($count > 2 || ($result && ($this->serializer->unserialize($result)['success'] ?? false === true))) {
-                unset($count);
-                $this->requestNotAllowed = true;
-            }
+            $cityStreetsArray['success'] = true;
         }
-        return $result;
+
+        return $this->serializer->unserialize($this->serializer->serialize($cityStreetsArray));
     }
 
     /**
      * @param string $cityRef
      * @return array<mixed>
      */
-    private function prepareRequestParams(string $cityRef): array
+    private function prepareRequestParams(string $cityRef, int $page = 1): array
     {
         $params = [
             'modelName' => 'Address',
             'calledMethod' => 'getStreet',
             "methodProperties" => [
                 "CityRef" => $cityRef,
-                "Limit" => 100000
+                "Page" => $page,
+                "Limit" => self::PAGE_SIZE
             ]
         ];
         return $params;
@@ -283,8 +277,7 @@ class Street implements UpdateEntityInterface
 
     /**
      * @param StreetInterface $street
-     * @param int|string|null $streetId
-     * @throws \Magento\Framework\Exception\AlreadyExistsException
+     * @param null $streetId
      */
     private function saveStreet(StreetInterface $street, $streetId = null): void
     {
@@ -292,7 +285,6 @@ class Street implements UpdateEntityInterface
             $street->setStreetId((int)$streetId);
         }
         try {
-            //TODO: replace with repository
             $this->streetResource->save($street); // @phpstan-ignore-line
         } catch (\Exception $exception) {
             $this->log($exception->getMessage());
@@ -323,6 +315,36 @@ class Street implements UpdateEntityInterface
         } else {
             $this->logger = \Magento\Framework\App\ObjectManager::getInstance()->get(\Psr\Log\LoggerInterface::class);
             $this->logger->debug($message, $context);
+        }
+    }
+
+    /**
+     * @param object $dataFromEndpoint
+     * @param $cityRef
+     * @return array
+     */
+    private function prepareDataFromNP($dataFromEndpoint, $cityRef)
+    {
+        $streetsData = [];
+        if (is_object($dataFromEndpoint) && property_exists($dataFromEndpoint, 'success')) {
+            foreach ($dataFromEndpoint as $datum) {
+                if (!is_object($datum)) {
+                    continue;
+                }
+                /** @var StreetInterface $street */
+                $street = $this->streetFactory->create();
+                $street->setRef($datum->{self::API_FIELD_REF})
+                    ->setDescription($datum->{self::API_FIELD_DESCRIPTION})
+                    ->setStreetTypeRef($datum->{self::API_FIELD_STREETS_TYPE_REF})
+                    ->setStreetType($datum->{self::API_FIELD_STREETS_TYPE})
+                    ->setCityRef($cityRef);
+                $streetsData[] = $street;
+            }
+            return $streetsData;
+        } else {
+            return [
+                $this->streetFactory->create()
+            ];
         }
     }
 }

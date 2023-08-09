@@ -174,7 +174,13 @@
     <type name="Perspective\NovaposhtaCatalog\Model\Update\Warehouse">
         <arguments>
             <argument xsi:type="object" name="serializer">Perspective\NovaposhtaCatalog\Service\JsonAsObject</argument>
-            <argument xsi:type="object" name="serializerToArray">\Magento\Framework\Serialize\Serializer\Json</argument>
+            <argument xsi:type="object" name="serializerToArray">Magento\Framework\Serialize\Serializer\Json</argument>
+        </arguments>
+    </type>
+    <type name="Perspective\NovaposhtaCatalog\Model\Update\Street">
+        <arguments>
+            <argument xsi:type="object" name="serializer">Perspective\NovaposhtaCatalog\Service\JsonAsObject</argument>
+            <argument xsi:type="object" name="serializerToArray">Magento\Framework\Serialize\Serializer\Json</argument>
         </arguments>
     </type>
     <type name="Perspective\NovaposhtaCatalog\Model\Update\WarehouseType">
