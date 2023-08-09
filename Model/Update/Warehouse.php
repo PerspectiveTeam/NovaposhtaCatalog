@@ -164,6 +164,7 @@ class Warehouse implements UpdateEntityInterface
         $this->postService->setTimeout(120);
         $cityRef = $params[0];
         $cityWarehousesArray = [];
+        $cityWarehousesArray['success'] = false;
         $paramsForRequest = $this->prepareParamsByCityRefAndPage($cityRef);
         $resultFormApi = $this->serializerToArray->unserialize(
             $this->postService

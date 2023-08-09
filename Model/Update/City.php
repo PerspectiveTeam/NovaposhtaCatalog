@@ -136,6 +136,7 @@ class City implements UpdateEntityInterface
         $paramsForRequest = [
             'modelName' => 'Address', 'calledMethod' => 'getCities', 'apiKey' => $this->configHelper->getApiKey(),
         ];
+        $this->postService->setTimeout(30);
         $resultFormApi = $this->serializer->unserialize(
             $this->postService
                 ->execute('Address', 'getCities', $paramsForRequest)

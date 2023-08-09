@@ -216,6 +216,9 @@ class Street implements UpdateEntityInterface
     public function getDataFromEndpoint(...$params)
     {
         $cityRef = $params[0];
+        $this->postService->setTimeout(60);
+        $cityStreetsArray = [];
+        $cityStreetsArray['success'] = false;
         $paramsForRequest = $this->prepareRequestParams($cityRef);
         $resultFormApi = $this->serializerToArray->unserialize(
             $this->postService
