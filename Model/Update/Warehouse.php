@@ -5,6 +5,7 @@ namespace Perspective\NovaposhtaCatalog\Model\Update;
 
 use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\Exception\AlreadyExistsException;
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Serialize\SerializerInterface;
 use Perspective\NovaposhtaCatalog\Api\CityRepositoryInterface;
 use Perspective\NovaposhtaCatalog\Api\Data\UpdateEntityInterface;
@@ -24,6 +25,8 @@ class Warehouse implements UpdateEntityInterface
      * @var string
      */
     const PAGE_SIZE = 100;
+
+    private static int $count = 0;
 
     /**
      * @var \Perspective\NovaposhtaCatalog\Helper\Config
@@ -166,10 +169,10 @@ class Warehouse implements UpdateEntityInterface
         $cityWarehousesArray = [];
         $cityWarehousesArray['success'] = false;
         $paramsForRequest = $this->prepareParamsByCityRefAndPage($cityRef);
+        $postServicePromise = $this->getServicePromise($paramsForRequest);
+        self::$count = 0;
         $resultFormApi = $this->serializerToArray->unserialize(
-            $this->postService
-                ->execute('Address', 'getWarehouses', $paramsForRequest)
-                ->get()
+            $postServicePromise
                 ->getBody()
         );
         if (isset($resultFormApi['success']) && $resultFormApi['success'] === true) {
@@ -178,10 +181,10 @@ class Warehouse implements UpdateEntityInterface
                 $pages = ceil($resultFormApi['info']['totalCount'] / self::PAGE_SIZE);
                 for ($i = 2; $i <= $pages; $i++) {
                     $paramsForRequest = $this->prepareParamsByCityRefAndPage($cityRef, $i);
+                    $postServicePromise = $this->getServicePromise($paramsForRequest);
+                    self::$count = 0;
                     $resultFormApi = $this->serializerToArray->unserialize(
-                        $this->postService
-                            ->execute('Address', 'getWarehouses', $paramsForRequest)
-                            ->get()
+                        $postServicePromise
                             ->getBody()
                     );
                     if (isset($resultFormApi['success']) && $resultFormApi['success'] === true) {
@@ -305,5 +308,28 @@ class Warehouse implements UpdateEntityInterface
             ]
         ];
         return $paramsForRequest;
+    }
+
+    /**
+     * @param array $paramsForRequest
+     * @return \Magento\Framework\HTTP\AsyncClient\Response
+     * @throws \Throwable
+     */
+    protected function getServicePromise(array $paramsForRequest): \Magento\Framework\HTTP\AsyncClient\Response
+    {
+        if (self::$count > 3) {
+            throw new LocalizedException(__('Too many attempts'));
+        }
+        try {
+            $postServicePromiseOrError = $this->postService
+                ->execute('Address', 'getWarehouses', $paramsForRequest)
+                ->get();
+            self::$count = 0;
+            return $postServicePromiseOrError;
+        } catch (\Throwable $e) {
+            self::$count++;
+            sleep(10);
+            return $this->getServicePromise($paramsForRequest);
+        }
     }
 }

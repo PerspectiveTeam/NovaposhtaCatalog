@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Perspective\NovaposhtaCatalog\Model\Update;
 
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Serialize\SerializerInterface;
 use Perspective\NovaposhtaCatalog\Api\Data\CityInterface;
 use Perspective\NovaposhtaCatalog\Api\Data\StreetInterface;
@@ -44,6 +45,8 @@ class Street implements UpdateEntityInterface
      * @var string
      */
     const PAGE_SIZE = 500;
+
+    private static int $count = 0;
 
     /**
      * @var \Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\CollectionFactory
@@ -220,11 +223,10 @@ class Street implements UpdateEntityInterface
         $cityStreetsArray = [];
         $cityStreetsArray['success'] = false;
         $paramsForRequest = $this->prepareRequestParams($cityRef);
+        $postServicePromise = $this->getServicePromise($paramsForRequest);
+        self::$count = 0;
         $resultFormApi = $this->serializerToArray->unserialize(
-            $this->postService
-                ->execute('Address', 'getStreet', $paramsForRequest)
-                ->get()
-                ->getBody()
+            $postServicePromise->getBody()
         );
         if (isset($resultFormApi['success']) && $resultFormApi['success'] === true) {
             $cityStreetsArray = $resultFormApi['data'];
@@ -232,11 +234,10 @@ class Street implements UpdateEntityInterface
                 $pages = ceil($resultFormApi['info']['totalCount'] / self::PAGE_SIZE);
                 for ($i = 2; $i <= $pages; $i++) {
                     $paramsForRequest = $this->prepareRequestParams($cityRef, $i);
+                    $postServicePromise = $this->getServicePromise($paramsForRequest);
+                    self::$count = 0;
                     $resultFormApi = $this->serializerToArray->unserialize(
-                        $this->postService
-                            ->execute('Address', 'getStreet', $paramsForRequest)
-                            ->get()
-                            ->getBody()
+                        $postServicePromise->getBody()
                     );
                     if (isset($resultFormApi['success']) && $resultFormApi['success'] === true) {
                         $cityStreetsArray = array_merge($cityStreetsArray, $resultFormApi['data']);
@@ -348,6 +349,28 @@ class Street implements UpdateEntityInterface
             return [
                 $this->streetFactory->create()
             ];
+        }
+    }
+    /**
+     * @param array $paramsForRequest
+     * @return \Magento\Framework\HTTP\AsyncClient\Response
+     * @throws \Throwable
+     */
+    protected function getServicePromise(array $paramsForRequest): \Magento\Framework\HTTP\AsyncClient\Response
+    {
+        if (self::$count > 3) {
+            throw new LocalizedException(__('Too many attempts'));
+        }
+        try {
+            $postServicePromiseOrError = $this->postService
+                ->execute('Address', 'getStreet', $paramsForRequest)
+                ->get();
+            self::$count = 0;
+            return $postServicePromiseOrError;
+        } catch (\Throwable $e) {
+            self::$count++;
+            sleep(10);
+            return $this->getServicePromise($paramsForRequest);
         }
     }
 }
