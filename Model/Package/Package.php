@@ -93,20 +93,36 @@ class Package extends \Magento\Framework\Model\AbstractExtensibleModel implement
     {
         return $this->setData(self::HEIGHT, $data);
     }
+    public function setVolumetricWeight($data)
+    {
+        return $this->setData(self::VOLUMETRIC_WEIGHT, $data);
+    }
+    public function setPackagingForPlace($data)
+    {
+        return $this->setData(self::PACKAGING_FOR_PLACE, $data);
+    }
 
-    public function getLength($data)
+    public function getLength()
     {
         return $this->getData(self::LENGTH);
     }
 
-    public function getWidth($data)
+    public function getWidth()
     {
         return $this->getData(self::WIDTH);
     }
 
-    public function getHeight($data)
+    public function getHeight()
     {
         return $this->getData(self::HEIGHT);
+    }
+    public function getVolumetricWeight()
+    {
+        return $this->getData(self::VOLUMETRIC_WEIGHT);
+    }
+    public function getPackagingForPlace()
+    {
+        return $this->getData(self::PACKAGING_FOR_PLACE);
     }
     public function getCustomAttributesCodes()
     {

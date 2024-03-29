@@ -7,6 +7,8 @@
                 type="Perspective\NovaposhtaCatalog\Model\WarehouseRepository" />
     <preference for="Perspective\NovaposhtaCatalog\Api\Data\StreetInterface"
                 type="Perspective\NovaposhtaCatalog\Model\Street\Street"/>
+    <preference for="Perspective\NovaposhtaCatalog\Api\Data\PackageInterface"
+                type="Perspective\NovaposhtaCatalog\Model\Package\Package"/>
     <preference for="Perspective\NovaposhtaCatalog\Api\StreetRepositoryInterface"
                 type="Perspective\NovaposhtaCatalog\Model\StreetRepository"/>
     <preference for="Perspective\NovaposhtaCatalog\Api\Data\StreetSearchResultsInterface"

@@ -3,12 +3,7 @@
 
 namespace Perspective\NovaposhtaCatalog\Model\Update;
 
-use Magento\Backend\App\Action\Context;
-use Magento\Framework\Controller\Result\JsonFactory;
 use Magento\Framework\Exception\AlreadyExistsException;
-use Magento\Framework\HTTP\Client\Curl;
-use Magento\Framework\HTTP\ZendClientFactory;
-use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\Serialize\SerializerInterface;
 use Perspective\NovaposhtaCatalog\Api\Data\UpdateEntityInterface;
 use Perspective\NovaposhtaCatalog\Helper\Config;
@@ -202,6 +197,8 @@ class Package implements UpdateEntityInterface
         isset($datum->Length) ? $packageTypesModel->setLength($datum->Length) : null;
         isset($datum->Width) ? $packageTypesModel->setWidth($datum->Width) : null;
         isset($datum->Height) ? $packageTypesModel->setHeight($datum->Height) : null;
+        isset($datum->VolumetricWeight) ? $packageTypesModel->setVolumetricWeight($datum->VolumetricWeight) : null;
+        isset($datum->PackagingForPlace) ? $packageTypesModel->setPackagingForPlace($datum->PackagingForPlace) : null;
         return $packageTypesModel;
     }
 }

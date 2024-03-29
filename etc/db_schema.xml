@@ -17,6 +17,8 @@
     <column xsi:type="longtext" name="length" nullable="true" comment="length"/>
     <column xsi:type="longtext" name="width" nullable="true" comment="width"/>
     <column xsi:type="longtext" name="height" nullable="true" comment="height"/>
+    <column xsi:type="longtext" name="volumetric_weight" nullable="true" comment="height"/>
+    <column xsi:type="longtext" name="packaging_for_place" nullable="true" comment="height"/>
     <constraint xsi:type="primary" referenceId="PRIMARY">
       <column name="id"/>
     </constraint>

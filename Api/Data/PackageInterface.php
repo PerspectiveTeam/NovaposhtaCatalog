@@ -21,6 +21,10 @@ interface PackageInterface
 
     const HEIGHT = 'height';
 
+    const VOLUMETRIC_WEIGHT = 'volumetric_weight';
+
+    const PACKAGING_FOR_PLACE = 'packaging_for_place';
+
     /*
      * Setters
      */
@@ -35,6 +39,8 @@ interface PackageInterface
     public function setWidth($data);
 
     public function setHeight($data);
+    public function setVolumetricWeight($data);
+    public function setPackagingForPlace($data);
 
     /*
      * Getters
@@ -45,9 +51,11 @@ interface PackageInterface
 
     public function getRef();
 
-    public function getLength($data);
+    public function getLength();
 
-    public function getWidth($data);
+    public function getWidth();
 
-    public function getHeight($data);
+    public function getHeight();
+    public function getVolumetricWeight();
+    public function getPackagingForPlace();
 }
