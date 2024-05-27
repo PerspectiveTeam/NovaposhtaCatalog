@@ -21,7 +21,7 @@ interface CityRepositoryInterface
 
     /**
      * @param \Magento\Framework\Api\SearchCriteriaInterface $searchCriteria
-     * @return mixed
+     * @return \Perspective\NovaposhtaCatalog\Api\Data\CitySearchResultsInterface
      */
     public function getList(SearchCriteriaInterface $searchCriteria);
     /**
