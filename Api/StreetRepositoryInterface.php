@@ -75,10 +75,13 @@ interface StreetRepositoryInterface
      *    'lable' => \Perspective\NovaposhtaCatalog\Api\Data\StreetInterface::DESCRIPTION
      * ]
      * @param string $cityRef
+     * @param int $pageSize
+     * @param int $currentPage
+     * @param string|null $term
      * @return array
      * @throws \Magento\Framework\Exception\LocalizedException
      */
-    public function getFormattedByCityRef(string $cityRef);
+    public function getFormattedByCityRef(string $cityRef, int $pageSize = 20, int $currentPage = 1, ?string $term = null);
 
     /**
      * Retrieve Streets Formatted array for by city ref.

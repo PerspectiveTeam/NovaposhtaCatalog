@@ -147,6 +147,12 @@ class StreetRepository implements StreetRepositoryInterface
         $searchCriteria = $searchCriteriaBuilder->create();
         return $this->processCollectionWithCriteria($searchCriteria);
     }
+    public function getCollectionByCityRefAlternative(string $cityRef)
+    {
+        $collection = $this->streetCollectionFactory->create();
+        $collection->addCityRefToFilter($cityRef);
+        return $collection;
+    }
     /**
      * {@inheritdoc}
      */
@@ -171,12 +177,18 @@ class StreetRepository implements StreetRepositoryInterface
     /**
      * {@inheritdoc}
      */
-    public function getFormattedByCityRef(string $cityRef)
+    public function getFormattedByCityRef(string $cityRef, int $pageSize = 20, int $currentPage = 1, ?string $term = null)
     {
-        $streets = $this->getByCityRef($cityRef);
+        $streetsCollection = $this->getCollectionByCityRefAlternative($cityRef);
+        if ($term) {
+            $streetsCollection->addStreetNameToFilter($term);
+        }
+        $streetsCollection->setPageSize($pageSize);
+        $streetsCollection->setCurPage($currentPage);
+        $streets = $streetsCollection->getItems();
         $result = [];
 
-        foreach ($streets->getItems() as $street) {
+        foreach ($streets as $street) {
             $result[] = [
                 'value' => $street->getRef(),
                 'label' => sprintf('%s %s', $street->getStreetType(), $street->getDescription())
