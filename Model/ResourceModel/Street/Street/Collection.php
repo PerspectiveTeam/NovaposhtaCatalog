@@ -5,6 +5,7 @@ namespace Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street;
 
 use Magento\Framework\Api\Search\SearchResultInterface;
 use Magento\Framework\Model\ResourceModel\Db\Collection\AbstractCollection;
+use Perspective\NovaposhtaCatalog\Api\Data\StreetInterface;
 use Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street as StreetResource;
 use Perspective\NovaposhtaCatalog\Model\Street\Street;
 
@@ -26,7 +27,19 @@ class Collection extends AbstractCollection implements SearchResultInterface
      */
     public function addCityRefToFilter(string $cityRef): Collection
     {
-        return $this->addFieldToFilter(\Perspective\NovaposhtaCatalog\Api\Data\StreetInterface::CITY_REF, $cityRef);
+        return $this->addFieldToFilter(StreetInterface::CITY_REF, $cityRef);
+    }
+
+    /**
+     * Filter collection by Street Name
+     * @param string $streetName
+     * @return \Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street\Collection
+     */
+    public function addStreetNameToFilter(string $streetName): Collection
+    {
+        return $this->addFieldToFilter(StreetInterface::DESCRIPTION, [
+            'like' => '%' . $streetName . '%'
+        ]);
     }
     /**
      * @inheritDoc
