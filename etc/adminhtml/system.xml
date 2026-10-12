@@ -134,14 +134,6 @@
                     </depends>
                     <frontend_model>Perspective\NovaposhtaCatalog\View\Grid\Cities</frontend_model>
                 </field>
-                <field id="view_list_of_areas" translate="label" type="button" sortOrder="3" showInDefault="1"
-                       showInWebsite="0" showInStore="0">
-                    <label>View list of areas</label>
-                    <depends>
-                        <field id="active">1</field>
-                    </depends>
-                    <frontend_model>Perspective\NovaposhtaCatalog\View\Grid\Areas</frontend_model>
-                </field>
             </group>
             <group id="schedule" translate="label" type="text" sortOrder="3" showInDefault="1" showInWebsite="0" showInStore="0">
                 <label>Schedule</label>
