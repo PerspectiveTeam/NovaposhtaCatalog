@@ -45,8 +45,8 @@
                 <argument name="data" xsi:type="array">
                     <item name="config" xsi:type="array">
                         <item name="type" xsi:type="string">delete</item>
-                        <item name="label" xsi:type="string" translate="true">Delete all</item>
-                        <item name="url" xsi:type="url" path="novaposhtacatalog/massaction/delete"/>
+                        <item name="label" xsi:type="string" translate="true">Deactivate selected</item>
+                        <item name="url" xsi:type="url" path="novaposhtacatalog/massaction/deactivate/directory/packages"/>
                     </item>
                 </argument>
             </action>
@@ -100,6 +100,20 @@
             </argument>
         </selectionsColumn>
 
+        <column name="is_active" component="Magento_Ui/js/grid/columns/select">
+            <settings>
+                <options class="Magento\Config\Model\Config\Source\Yesno"/>
+                <filter>select</filter>
+                <dataType>select</dataType>
+                <label translate="true">Active</label>
+            </settings>
+        </column>
+        <column name="missing_successful_syncs">
+            <settings><filter>textRange</filter><label translate="true">Missing confirmations</label></settings>
+        </column>
+        <column name="last_seen_at" class="Magento\Ui\Component\Listing\Columns\Date">
+            <settings><filter>dateRange</filter><dataType>date</dataType><label translate="true">Last seen</label></settings>
+        </column>
         <column name="id">
             <argument name="data" xsi:type="array">
                 <item name="config" xsi:type="array">
