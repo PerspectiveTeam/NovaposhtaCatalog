@@ -167,8 +167,15 @@ a later import can reactivate a record present in the API.
 - Cron group: `perspective_novaposhta_catalog`; job: `update_novaposhta_catalog`.
   The module imports directories in order: warehouse types, package types, areas,
   cities, warehouses, streets.
-- The installation data patch queues an initial cron job. Saving Frequency
-  in Admin generates the recurring schedule.
+- The installation data patch queues an initial cron job. Saving Schedule settings
+  with **Enable Scheduled Synchronization** enabled generates the recurring schedule
+  using the selected time and frequency.
+- Saving **Enable Scheduled Synchronization = No** clears the cron expression.
+  The job checks this flag before every run, including previously queued jobs,
+  jobs queued through **Schedule the update**, and the initial installation job.
+  An import already running continues to completion. Enabling and saving again
+  restores the schedule using the selected time and frequency.
+  Direct manual imports remain available.
 - **7 days**, **15 days**, and **30 days** set a day-of-month step in the cron
   expression, not a fixed elapsed interval between runs.
   Synchronization dates are stored in UTC.

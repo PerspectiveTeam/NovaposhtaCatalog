@@ -140,6 +140,7 @@
                 <field id="enabled" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="0">
                     <label>Enable Scheduled Synchronization</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <backend_model>Perspective\NovaposhtaCatalog\Model\Config\Backend\Cron</backend_model>
                 </field>
                 <field id="schedule_new_updating" translate="label" type="button" sortOrder="3" showInDefault="1"
                        showInWebsite="0" showInStore="0">
@@ -163,7 +164,6 @@
                         <field id="enabled">1</field>
                     </depends>
                     <source_model>Perspective\NovaposhtaCatalog\Model\Config\Source\Frequency</source_model>
-                    <backend_model>Perspective\NovaposhtaCatalog\Model\Config\Backend\Cron</backend_model>
                 </field>
                 <field id="last_sync_city" translate="label" type="label" sortOrder="50" showInDefault="1" showInWebsite="0" showInStore="0">
                     <label>Last Cities Synchronization</label>
