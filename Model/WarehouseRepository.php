@@ -46,14 +46,16 @@ class WarehouseRepository implements WarehouseRepositoryInterface
      * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse $warehouseResourceModel
      * @param \Perspective\NovaposhtaCatalog\Model\Warehouse\WarehouseFactory $warehouseModelFactory
      * @param \Perspective\NovaposhtaCatalog\Api\Data\CitySearchResultsInterfaceFactory $searchResultsFactory
-     * @param \Magento\Framework\Api\SearchCriteria\CollectionProcessorInterface $collectionProcessor
+     * @param \Magento\Framework\Api\SearchCriteria\CollectionProcessorInterface $collectionProcessor,
+        private Availability $availability
      */
     public function __construct(
         CollectionFactory $warehouseCollectionFactory,
         ResourceModel\Warehouse\Warehouse $warehouseResourceModel,
         WarehouseFactory $warehouseModelFactory,
         WarehouseSearchResultsInterfaceFactory $searchResultsFactory,
-        CollectionProcessorInterface $collectionProcessor
+        CollectionProcessorInterface $collectionProcessor,
+        private Availability $availability
     ) {
         $this->warehouseCollectionFactory = $warehouseCollectionFactory;
         $this->warehouseResourceModel = $warehouseResourceModel;
@@ -68,6 +70,7 @@ class WarehouseRepository implements WarehouseRepositoryInterface
     public function getArrayOfWarehouseModelsByCityRef(string $cityRef, string $locale)
     {
         $warehouseCollection = $this->warehouseCollectionFactory->create();
+        $this->availability->apply($warehouseCollection);
         return $warehouseCollection
             ->addFieldToFilter(Warehouse::CITY_REF, ['eq' => $cityRef])->getItems();
     }
@@ -78,6 +81,7 @@ class WarehouseRepository implements WarehouseRepositoryInterface
     public function getCollectionOfWarehousesByCityRef(string $cityRef)
     {
         $warehouseCollection = $this->warehouseCollectionFactory->create();
+        $this->availability->apply($warehouseCollection);
         return $warehouseCollection
             ->addFieldToFilter(Warehouse::CITY_REF, ['like' => $cityRef]);
     }
@@ -91,6 +95,7 @@ class WarehouseRepository implements WarehouseRepositoryInterface
          * @var \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\Collection $warehouseCollection
          */
         $warehouseCollection = $this->warehouseCollectionFactory->create();
+        $this->availability->apply($warehouseCollection);
         $warehouseOptionArr = [];
         $cityWarehouseCollection = $warehouseCollection
             ->addFieldToFilter(Warehouse::CITY_REF, ['eq' => $cityRef])->getItems();
@@ -166,7 +171,7 @@ class WarehouseRepository implements WarehouseRepositoryInterface
      */
     protected function processCollectionWithCriteria(SearchCriteriaInterface $searchCriteria): Collection
     {
-        $collection = $this->warehouseModelFactory->create();
+        $collection = $this->warehouseCollectionFactory->create();
 
         $this->collectionProcessor->process($searchCriteria, $collection);
         return $collection;

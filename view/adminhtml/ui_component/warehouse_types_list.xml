@@ -9,12 +9,7 @@
         </item>
         <item name="spinner" xsi:type="string">novaposhta_columns</item>
         <item name="buttons" xsi:type="array">
-            <item name="add" xsi:type="array">
-                <item name="name" xsi:type="string">add</item>
-                <item name="label" xsi:type="string" translate="true">Sync with Novaposhta</item>
-                <item name="class" xsi:type="string">primary</item>
-                <item name="url" xsi:type="string">*/sync/warehousetype</item>
-            </item>
+            <item name="add" xsi:type="string">Perspective\NovaposhtaCatalog\Grid\SyncButton\WarehouseTypes</item>
         </item>
     </argument>
     <dataSource name="warehouse_types_list_data_source">
@@ -50,8 +45,8 @@
                 <argument name="data" xsi:type="array">
                     <item name="config" xsi:type="array">
                         <item name="type" xsi:type="string">delete</item>
-                        <item name="label" xsi:type="string" translate="true">Delete all</item>
-                        <item name="url" xsi:type="url" path="novaposhtacatalog/massaction/delete"/>
+                        <item name="label" xsi:type="string" translate="true">Deactivate selected</item>
+                        <item name="url" xsi:type="url" path="novaposhtacatalog/massaction/deactivate/directory/warehouse_types"/>
                     </item>
                 </argument>
             </action>
@@ -100,11 +95,25 @@
                 <item name="config" xsi:type="array">
                     <item name="resizeEnabled" xsi:type="boolean">false</item>
                     <item name="resizeDefaultWidth" xsi:type="string">55</item>
-                    <item name="indexField" xsi:type="string">main_table.id</item>
+                    <item name="indexField" xsi:type="string">id</item>
                 </item>
             </argument>
         </selectionsColumn>
 
+        <column name="is_active" component="Magento_Ui/js/grid/columns/select">
+            <settings>
+                <options class="Magento\Config\Model\Config\Source\Yesno"/>
+                <filter>select</filter>
+                <dataType>select</dataType>
+                <label translate="true">Active</label>
+            </settings>
+        </column>
+        <column name="missing_successful_syncs">
+            <settings><filter>textRange</filter><label translate="true">Missing confirmations</label></settings>
+        </column>
+        <column name="last_seen_at" class="Magento\Ui\Component\Listing\Columns\Date">
+            <settings><filter>dateRange</filter><dataType>date</dataType><label translate="true">Last seen</label></settings>
+        </column>
         <column name="id">
             <argument name="data" xsi:type="array">
                 <item name="config" xsi:type="array">

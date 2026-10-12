@@ -4,7 +4,6 @@
 namespace Perspective\NovaposhtaCatalog\Model\Update;
 
 use Magento\Framework\Api\SearchCriteriaBuilder;
-use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Serialize\SerializerInterface;
 use Perspective\NovaposhtaCatalog\Api\CityRepositoryInterface;
@@ -25,8 +24,6 @@ class Warehouse implements UpdateEntityInterface
      * @var string
      */
     const PAGE_SIZE = 100;
-
-    private static int $count = 0;
 
     /**
      * @var \Perspective\NovaposhtaCatalog\Helper\Config
@@ -90,7 +87,11 @@ class Warehouse implements UpdateEntityInterface
      * @param \Perspective\NovaposhtaCatalog\Service\HTTP\Post $postService
      * @param \Perspective\NovaposhtaCatalog\Api\CityRepositoryInterface $cityRepository
      * @param \Magento\Framework\Api\SearchCriteriaBuilder $searchCriteriaBuilder
-     * @param \Perspective\NovaposhtaCatalog\Api\WarehouseRepositoryInterface $warehouseRepository
+     * @param \Perspective\NovaposhtaCatalog\Api\WarehouseRepositoryInterface $warehouseRepository,
+        private DirectorySnapshot $snapshot,
+        private PagedDirectory $pages,
+        private \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\CollectionFactory $collectionFactory,
+        private \Psr\Log\LoggerInterface $logger
      */
     public function __construct(
         Config $configHelper,
@@ -102,7 +103,11 @@ class Warehouse implements UpdateEntityInterface
         Post $postService,
         CityRepositoryInterface $cityRepository,
         SearchCriteriaBuilder $searchCriteriaBuilder,
-        WarehouseRepositoryInterface $warehouseRepository
+        WarehouseRepositoryInterface $warehouseRepository,
+        private DirectorySnapshot $snapshot,
+        private PagedDirectory $pages,
+        private \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\CollectionFactory $collectionFactory,
+        private \Psr\Log\LoggerInterface $logger
     ) {
         $this->warehouseResourceModel = $warehouseResourceModel;
         $this->warehouseFactory = $warehouseFactory;
@@ -126,28 +131,23 @@ class Warehouse implements UpdateEntityInterface
         $error = true;
         $data = [];
         if ($this->configHelper->isEnabled()) {
-            $listOfAllCities = $this->cityRepository->getList($this->searchCriteriaBuilder->create())->getItems();
-            foreach ($listOfAllCities as $city) {
-                //$city->setRef('e221d64c-391c-11dd-90d9-001a92567626'); //todo debug
-                /** @var \stdClass $warehouseListJsonDecoded */
-                $warehouseListJsonDecoded = $this->getDataFromEndpoint($city->getRef());
-                if (property_exists($warehouseListJsonDecoded, 'success')
-                    && $warehouseListJsonDecoded->success === true) {
-                    try {
-                        $error = false;
-                        $message = 'In Progress..';
-                        $this->setDataToDb($warehouseListJsonDecoded, $city->getRef());
-                    } catch (AlreadyExistsException $e) {
-                        $error = true;
-                        $message = "Key already exist\n" . $e->getMessage();
-                    }
-                    if (!$error) {
-                        $error = false;
-                        $message = "Successfully synced";
-                        $this->cronSyncDateLastUpdate
-                            ->updateSyncDate($this->cronSyncDateLastUpdate::XML_PATH_LAST_SYNC_WAREHOUSE);
-                    }
+            try {
+                $criteria = $this->searchCriteriaBuilder->addFilter('is_active', 1)->create();
+                $cities = $this->cityRepository->getList($criteria)->getItems();
+                foreach ($cities as $city) {
+                    $cityRef = $city->getRef();
+                    $this->snapshot->withLock('np_warehouses_' . sha1($cityRef), function () use ($cityRef) {
+                        $this->setDataToDb($this->getDataFromEndpoint($cityRef), $cityRef);
+                    });
                 }
+                if ($cities) {
+                    $this->cronSyncDateLastUpdate->updateSyncDate(CronSyncDateLastUpdate::XML_PATH_LAST_SYNC_WAREHOUSE);
+                    $error = false;
+                    $message = 'Successfully synced';
+                }
+            } catch (\Throwable $e) {
+                $message = $e->getMessage();
+                $this->logger->error('Nova Poshta warehouses sync failed: ' . $message);
             }
         }
         return [
@@ -164,37 +164,19 @@ class Warehouse implements UpdateEntityInterface
      */
     public function getDataFromEndpoint(...$params)
     {
-        $this->postService->setTimeout(120);
-        $cityRef = $params[0];
-        $cityWarehousesArray = [];
-        $cityWarehousesArray['success'] = false;
-        $paramsForRequest = $this->prepareParamsByCityRefAndPage($cityRef);
-        $postServicePromise = $this->getServicePromise($paramsForRequest);
-        self::$count = 0;
-        $resultFormApi = $this->serializerToArray->unserialize(
-            $postServicePromise
-                ->getBody()
-        );
-        if (isset($resultFormApi['success']) && $resultFormApi['success'] === true) {
-            $cityWarehousesArray = $resultFormApi['data'];
-            if ($resultFormApi['info']['totalCount'] > self::PAGE_SIZE) {
-                $pages = ceil($resultFormApi['info']['totalCount'] / self::PAGE_SIZE);
-                for ($i = 2; $i <= $pages; $i++) {
-                    $paramsForRequest = $this->prepareParamsByCityRefAndPage($cityRef, $i);
-                    $postServicePromise = $this->getServicePromise($paramsForRequest);
-                    self::$count = 0;
-                    $resultFormApi = $this->serializerToArray->unserialize(
-                        $postServicePromise
-                            ->getBody()
-                    );
-                    if (isset($resultFormApi['success']) && $resultFormApi['success'] === true) {
-                        $cityWarehousesArray = array_merge($cityWarehousesArray, $resultFormApi['data']);
-                    }
-                }
-            }
-            $cityWarehousesArray['success'] = true;
+        $cityRef = $params[0] ?? null;
+        if (!is_string($cityRef) || trim($cityRef) === '') {
+            throw new LocalizedException(__('Invalid warehouses sync scope.'));
         }
-        return $this->serializer->unserialize($this->serializer->serialize($cityWarehousesArray));
+        $this->postService->setTimeout(120);
+        $rows = $this->pages->read(function ($page) use ($cityRef) {
+            return $this->serializerToArray->unserialize(
+                $this->getServicePromise($this->prepareParamsByCityRefAndPage($cityRef, $page))->getBody()
+            );
+        }, self::PAGE_SIZE);
+        $response = $this->serializer->unserialize($this->serializer->serialize(array_merge($rows, ['success' => true])));
+        $this->prepareSnapshot($response, $cityRef);
+        return $response;
     }
 
     /**
@@ -203,28 +185,58 @@ class Warehouse implements UpdateEntityInterface
      */
     public function setDataToDb(...$params)
     {
-        $data = $params[0];
-        $cityRef = $params[1];
-
-        $collection = $this->warehouseRepository->getCollectionOfWarehousesByCityRef($cityRef);
-        $allIds = $collection->getAllIds();
-        $presentedIds = [];
-        foreach ($data as $item) {
-            if (!is_object($item)) {
-                continue;
-            }
-            $singleItem = $this->warehouseFactory->create();
-            $this->warehouseResourceModel->load($singleItem, $item->Ref, WarehouseInterface::REF);
-            $filledModel = $this->prepareData($item, $singleItem);
-            $this->warehouseResourceModel->save($filledModel);
-            $presentedIds[] = $filledModel->getId();
+        $cityRef = $params[1] ?? null;
+        if (!is_string($cityRef) || trim($cityRef) === '') {
+            throw new LocalizedException(__('Invalid warehouses sync scope.'));
         }
-        foreach ($allIds as $id) {
-            if (!in_array($id, $presentedIds)) {
-                $singleItem = $this->warehouseFactory->create();
-                $this->warehouseResourceModel->load($singleItem, $id, WarehouseInterface::ID);
-                $this->warehouseResourceModel->delete($singleItem);
+        $models = $this->prepareSnapshot($params[0] ?? null, $cityRef);
+        $this->snapshot->saveScoped(
+            $models,
+            $this->warehouseResourceModel,
+            fn () => $this->collectionFactory->create(),
+            $cityRef,
+            'np_warehouses_'
+        );
+    }
+
+    private function prepareSnapshot(mixed $response, string $cityRef): array
+    {
+        if (!is_object($response) || ($response->success ?? null) !== true) {
+            throw new LocalizedException(__('Nova Poshta warehouses request failed, sync aborted.'));
+        }
+        $rows = (array)$response;
+        unset($rows['success']);
+        return $this->snapshot->prepare($rows, function ($row) use ($cityRef) {
+            $this->validateWarehouse($row, $cityRef);
+            return $this->prepareData($row);
+        }, true);
+    }
+
+    private function validateWarehouse(object $row, string $cityRef): void
+    {
+        if (($row->CityRef ?? null) !== $cityRef) {
+            throw new LocalizedException(__('Nova Poshta returned a warehouse outside the requested city.'));
+        }
+        foreach (['TypeOfWarehouse', 'WarehouseStatus'] as $field) {
+            $value = $row->$field ?? null;
+            if (!is_string($value) || trim($value) === '' || strlen($value) > 255) {
+                throw new LocalizedException(__('Nova Poshta returned an invalid warehouse field: %1.', $field));
             }
+        }
+        foreach (['SiteKey', 'Number'] as $field) {
+            $value = $row->$field ?? null;
+            if ((!is_string($value) && !is_int($value)) || trim((string)$value) === '') {
+                throw new LocalizedException(__('Nova Poshta returned an invalid warehouse field: %1.', $field));
+            }
+        }
+        $statuses = [
+            \Perspective\NovaposhtaCatalog\Model\Warehouse\WarehouseStatuses::WORKING,
+            \Perspective\NovaposhtaCatalog\Model\Warehouse\WarehouseStatuses::IN_PROCESS_OPENING,
+            \Perspective\NovaposhtaCatalog\Model\Warehouse\WarehouseStatuses::NOT_WORKING,
+            \Perspective\NovaposhtaCatalog\Model\Warehouse\WarehouseStatuses::NOT_WORKING_TEMPORARY,
+        ];
+        if (!in_array($row->WarehouseStatus, $statuses, true)) {
+            throw new LocalizedException(__('Nova Poshta returned an unknown warehouse status; review before syncing.'));
         }
     }
 
@@ -317,19 +329,6 @@ class Warehouse implements UpdateEntityInterface
      */
     protected function getServicePromise(array $paramsForRequest): \Magento\Framework\HTTP\AsyncClient\Response
     {
-        if (self::$count > 3) {
-            throw new LocalizedException(__('Too many attempts'));
-        }
-        try {
-            $postServicePromiseOrError = $this->postService
-                ->execute('Address', 'getWarehouses', $paramsForRequest)
-                ->get();
-            self::$count = 0;
-            return $postServicePromiseOrError;
-        } catch (\Throwable $e) {
-            self::$count++;
-            sleep(10);
-            return $this->getServicePromise($paramsForRequest);
-        }
+        return $this->postService->getResponse('Address', 'getWarehouses', $paramsForRequest);
     }
 }

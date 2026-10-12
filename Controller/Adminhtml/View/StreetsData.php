@@ -28,7 +28,7 @@ class StreetsData extends Action
      */
     protected function _isAllowed()
     {
-        return $this->_authorization->isAllowed('Perspective_NovaposhtaCatalog::NovaposhtaCatalog');
+        return $this->_authorization->isAllowed('Perspective_NovaposhtaCatalog::settings');
     }
     /**
      * Warehouse controller for list

@@ -10,7 +10,7 @@
                 <resource id="Magento_Backend::stores">
                     <resource id="Magento_Backend::stores_settings">
                         <resource id="Magento_Config::config">
-                            <resource id="Perspective_NovaposhtaCatalog::NovaposhtaCatalog" title="NovaposhtaCatalog"
+                            <resource id="Perspective_NovaposhtaCatalog::settings" title="Novaposhta Catalog Settings"
                                       translate="title" />
                         </resource>
                     </resource>

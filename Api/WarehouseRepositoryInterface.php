@@ -9,6 +9,7 @@ interface WarehouseRepositoryInterface
 {
     /**
      * @param string $cityRef
+     * @param string $locale
      * @return array
      */
     public function getListOfWarehousesByCityRef(string $cityRef, string $locale);

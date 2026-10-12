@@ -37,6 +37,7 @@
 "Place max weight allowed","Общий разрешенный вес (для больших складов)"
 "Warehouse status","Статус склада"
 "Update cities list","Обновить список городов"
+"Update areas list","Обновить список областей"
 "View list of warehouse","Посмотреть список складов"
 "Must be used first","Должно быть использовано первым"
 "Must be used after update of warehouse types list","Должно быть использовано после обновления типов складов"

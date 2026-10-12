@@ -2,7 +2,6 @@
 
 namespace Perspective\NovaposhtaCatalog\Model\Update;
 
-use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Serialize\SerializerInterface;
 use Perspective\NovaposhtaCatalog\Api\Data\UpdateEntityInterface;
@@ -60,6 +59,8 @@ class WarehouseType implements UpdateEntityInterface
      */
     private Post $postService;
 
+    private DirectorySnapshot $snapshot;
+
 
     /**
      * @param \Perspective\NovaposhtaCatalog\Helper\Config $configHelper
@@ -77,7 +78,9 @@ class WarehouseType implements UpdateEntityInterface
         WarehouseTypesFactory $warehouseTypesFactory,
         WarehouseTypes $warehouseTypesResourceModel,
         CollectionFactory $warehouseTypesResourceModelCollectionFactory,
-        Post $postService
+        Post $postService,
+        DirectorySnapshot $snapshot,
+        private \Psr\Log\LoggerInterface $logger
     ) {
         $this->warehouseTypesResourceModelCollectionFactory = $warehouseTypesResourceModelCollectionFactory;
         $this->warehouseTypesResourceModel = $warehouseTypesResourceModel;
@@ -86,6 +89,7 @@ class WarehouseType implements UpdateEntityInterface
         $this->cronSyncDateLastUpdate = $cronSyncDateLastUpdate;
         $this->serializer = $serializer;
         $this->postService = $postService;
+        $this->snapshot = $snapshot;
     }
 
     /**
@@ -97,32 +101,30 @@ class WarehouseType implements UpdateEntityInterface
         $error = true;
         $data = [];
         if ($this->configHelper->isEnabled()) {
-            $langArr = ['ua', 'ru'];
-            foreach ($langArr as $idx => $lang) {
-                $this->lang = $lang;
-                /** @var \stdClass $warehouseTypeListJsonDecoded */
-                $warehouseTypeListJsonDecoded = $this->getDataFromEndpoint($this->lang);
-                if (property_exists($warehouseTypeListJsonDecoded, 'success')
-                    && $warehouseTypeListJsonDecoded->success === true) {
-                    try {
-                        $error = false;
-                        $message = 'In Progress..';
-                        $this->setDataToDB($warehouseTypeListJsonDecoded->data);
-                    } catch (AlreadyExistsException $e) {
-                        $error = true;
-                        $message = "Key already exist\n" . $e->getMessage();
-                    } catch (LocalizedException $e) {
-                        $error = true;
-                        $message = "General Error\n" . $e->getMessage() . "\n";
-                        $message .= $e->getTraceAsString();
+            try {
+                $this->snapshot->withLock('perspective_novaposhta_warehouse_types_sync', function () {
+                    $translations = [];
+                    foreach (['ua', 'ru'] as $lang) {
+                        $this->lang = $lang;
+                        $rows = $this->snapshot->getResponseData($this->getDataFromEndpoint($lang));
+                        $translations[$lang] = $this->snapshot->prepare($rows, fn ($row) => $this->prepareData($row));
                     }
-                    if (!$error) {
-                        $error = false;
-                        $message = "Successfully synced";
-                        $this->cronSyncDateLastUpdate
-                            ->updateSyncDate($this->cronSyncDateLastUpdate::XML_PATH_LAST_SYNC_WAREHOUSE_TYPES);
+                    if (array_diff_key($translations['ua'], $translations['ru'])
+                        || array_diff_key($translations['ru'], $translations['ua'])
+                    ) {
+                        throw new LocalizedException(__('Nova Poshta returned inconsistent warehouse type translations.'));
                     }
-                }
+                    foreach ($translations['ua'] as $ref => $model) {
+                        $model->setDescriptionRu($translations['ru'][$ref]->getDescriptionRu());
+                    }
+                    $this->saveSnapshot($translations['ua']);
+                    $this->cronSyncDateLastUpdate->updateSyncDate(CronSyncDateLastUpdate::XML_PATH_LAST_SYNC_WAREHOUSE_TYPES);
+                });
+                $error = false;
+                $message = 'Successfully synced';
+            } catch (\Throwable $e) {
+                $message = $e->getMessage();
+                $this->logger->error('Nova Poshta warehouse types sync failed: ' . $message);
             }
         }
         return [
@@ -138,32 +140,17 @@ class WarehouseType implements UpdateEntityInterface
      */
     public function setDataToDB(...$params)
     {
-        $data = $params[0];
-        $entireTableColl = $this->warehouseTypesResourceModelCollectionFactory->create();
-        $entireIds = $entireTableColl->getAllIds();
-        foreach ($data as $idx => $datum) {
-            $filledModel = $this->prepareData($datum);
-            /**@var $warehouseTypesModel \Perspective\NovaposhtaCatalog\Model\Warehouse\WarehouseTypes */
-            $singleItem = $this->warehouseTypesFactory->create();
-            $this->warehouseTypesResourceModel->load($singleItem, $filledModel->getRef(), $filledModel::REF);
-                    if ($singleItem->getRef()) {
-                        $filledModel->setId($singleItem->getId());
-                        $this->warehouseTypesResourceModel
-                            ->save($filledModel);
-                    } else {
-                        $this->warehouseTypesResourceModel
-                            ->save($filledModel);
-                    }
+        $this->saveSnapshot($this->snapshot->prepare($params[0] ?? null, fn ($row) => $this->prepareData($row)));
+    }
 
-            unset($entireIds[array_search($singleItem->getId(), $entireIds)]);
-        }
-        if (count($entireIds) > 0) {
-            foreach ($entireIds as $remIdx => $remItem) {
-                $cleanUpModel = $this->warehouseTypesFactory->create();
-                $this->warehouseTypesResourceModel->load($cleanUpModel, $remItem, 'id');
-                $this->warehouseTypesResourceModel->delete($cleanUpModel);
-            }
-        }
+    private function saveSnapshot(array $models): void
+    {
+        $this->snapshot->save(
+            $models,
+            $this->warehouseTypesResourceModel,
+            fn () => $this->warehouseTypesResourceModelCollectionFactory->create(),
+            'perspective_novaposhta_warehouse_types_sync'
+        );
     }
 
     /**
@@ -196,8 +183,7 @@ class WarehouseType implements UpdateEntityInterface
         ];
         $resultFormApi = $this->serializer->unserialize(
             $this->postService
-                ->execute('Address', 'getWarehouseTypes', $paramsForRequest)
-                ->get()
+                ->getResponse('Address', 'getWarehouseTypes', $paramsForRequest)
                 ->getBody()
         );
         return $resultFormApi;

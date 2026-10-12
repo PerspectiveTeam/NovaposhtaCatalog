@@ -4,9 +4,9 @@
 namespace Perspective\NovaposhtaCatalog\Controller\Adminhtml\Sync;
 
 use Magento\Backend\App\Action\Context;
+use Magento\Framework\App\Action\HttpPostActionInterface;
 use Magento\Framework\Controller\ResultFactory;
 use Magento\Framework\Json\Helper\Data;
-use Magento\Framework\View\Result\PageFactory;
 use Psr\Log\LoggerInterface;
 use Perspective\NovaposhtaCatalog\Model\Update\Street;
 
@@ -14,69 +14,22 @@ use Perspective\NovaposhtaCatalog\Model\Update\Street;
  * Class SyncAll
  * Syncs all data with api
  */
-class SyncAll extends \Magento\Backend\App\Action
+class SyncAll extends \Magento\Backend\App\Action implements HttpPostActionInterface
 {
+    public const ADMIN_RESOURCE = 'Perspective_NovaposhtaCatalog::settings';
 
-    /**
-     * @var \Magento\Framework\View\Result\PageFactory
-     */
-    protected $resultPageFactory;
-    /**
-     * @var \Magento\Framework\Json\Helper\Data
-     */
-    protected $jsonHelper;
-    /**
-     * @var \Perspective\NovaposhtaCatalog\Controller\Adminhtml\Sync\Warehouse
-     */
-    private $warehouse;
-    /**
-     * @var \Perspective\NovaposhtaCatalog\Controller\Adminhtml\Sync\WarehouseType
-     */
-    private $warehouseType;
-    /**
-     * @var \Perspective\NovaposhtaCatalog\Controller\Adminhtml\Sync\City
-     */
-    private $city;
-
-    /**
-     * @var Street
-     */
-    private $street;
-
-    /**
-     * @var \Psr\Log\LoggerInterface
-     */
-    private LoggerInterface $logger;
-
-    /**
-     * Constructor
-     *
-     * @param \Magento\Backend\App\Action\Context $context
-     * @param \Magento\Framework\View\Result\PageFactory $resultPageFactory
-     * @param \Magento\Framework\Json\Helper\Data $jsonHelper
-     * @param \Psr\Log\LoggerInterface $logger
-     * @param \Perspective\NovaposhtaCatalog\Controller\Adminhtml\Sync\Warehouse $warehouse
-     * @param \Perspective\NovaposhtaCatalog\Controller\Adminhtml\Sync\WarehouseType $warehouseType
-     * @param \Perspective\NovaposhtaCatalog\Controller\Adminhtml\Sync\City $city
-     */
     public function __construct(
         Context $context,
-        PageFactory $resultPageFactory,
-        Data $jsonHelper,
-        LoggerInterface $logger,
-        Warehouse $warehouse,
-        WarehouseType $warehouseType,
-        City $city,
-        Street $street
-    ) {
+        private readonly Data $jsonHelper,
+        private readonly LoggerInterface $logger,
+        private readonly Warehouse $warehouse,
+        private readonly WarehouseType $warehouseType,
+        private readonly City $city,
+        private readonly Street $street,
+        private readonly Area $area
+    )
+    {
         parent::__construct($context);
-        $this->resultPageFactory = $resultPageFactory;
-        $this->jsonHelper = $jsonHelper;
-        $this->logger = $logger;
-        $this->warehouse = $warehouse;
-        $this->warehouseType = $warehouseType;
-        $this->city = $city;
-        $this->street = $street;
     }
 
     /**
@@ -87,7 +40,11 @@ class SyncAll extends \Magento\Backend\App\Action
     public function execute()
     {
         try {
-             $this->warehouseType->execute();
+            $this->area->execute();
+            $this->messageManager->addSuccessMessage(
+                __('Areas successfully synced')
+            );
+            $this->warehouseType->execute();
             $this->messageManager->addSuccessMessage(
                 __('Warehouse types successfully synced')
             );

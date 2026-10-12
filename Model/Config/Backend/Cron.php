@@ -3,14 +3,14 @@
 
 namespace Perspective\NovaposhtaCatalog\Model\Config\Backend;
 
+use Magento\Framework\App\Cache\Type\Config;
+use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\App\Config\Storage\WriterInterface;
 use Perspective\NovaposhtaCatalog\Api\Data\ConfigSettingsInterface;
 
 class Cron extends \Magento\Framework\App\Config\Value implements ConfigSettingsInterface
 {
-    /**
-     * @var \Magento\Framework\App\Config\ValueFactory
-     */
-    protected $_configValueFactory;
+    private WriterInterface $configWriter;
 
     /**
      * @var string
@@ -22,7 +22,7 @@ class Cron extends \Magento\Framework\App\Config\Value implements ConfigSettings
      * @param \Magento\Framework\Registry $registry
      * @param \Magento\Framework\App\Config\ScopeConfigInterface $config
      * @param \Magento\Framework\App\Cache\TypeListInterface $cacheTypeList
-     * @param \Magento\Framework\App\Config\ValueFactory $configValueFactory
+     * @param WriterInterface $configWriter
      * @param \Magento\Framework\Model\ResourceModel\AbstractResource $resource
      * @param \Magento\Framework\Data\Collection\AbstractDb $resourceCollection
      * @param string $runModelPath
@@ -33,14 +33,14 @@ class Cron extends \Magento\Framework\App\Config\Value implements ConfigSettings
         \Magento\Framework\Registry $registry,
         \Magento\Framework\App\Config\ScopeConfigInterface $config,
         \Magento\Framework\App\Cache\TypeListInterface $cacheTypeList,
-        \Magento\Framework\App\Config\ValueFactory $configValueFactory,
+        WriterInterface $configWriter,
         ?\Magento\Framework\Model\ResourceModel\AbstractResource $resource = null,
         ?\Magento\Framework\Data\Collection\AbstractDb $resourceCollection = null,
         $runModelPath = '',
         array $data = []
     ) {
         $this->_runModelPath = $runModelPath;
-        $this->_configValueFactory = $configValueFactory;
+        $this->configWriter = $configWriter;
         parent::__construct($context, $registry, $config, $cacheTypeList, $resource, $resourceCollection, $data);
     }
 
@@ -52,29 +52,29 @@ class Cron extends \Magento\Framework\App\Config\Value implements ConfigSettings
      */
     public function afterSave()
     {
-        // @codingStandardsIgnoreLine
-        $enabled = intval($this->getData(self::XML_PATH_SCHEDULE_ENABLED));
-        $time = $this->getData(self::XML_PATH_SCHEDULE_TIME);
-        $frequency = $this->getData(self::XML_PATH_SCHEDULE_FREQUENCY);
-
-        switch ($frequency) {
-            case \Perspective\NovaposhtaCatalog\Model\Config\Source\Frequency::CRON_SEVEN:
-                $days = '*/7';
-                break;
-            case \Perspective\NovaposhtaCatalog\Model\Config\Source\Frequency::CRON_FIFTEEN:
-                $days = '*/15';
-                break;
-            case \Perspective\NovaposhtaCatalog\Model\Config\Source\Frequency::CRON_THIRTY:
-                $days = '*/30';
-                break;
-            case \Perspective\NovaposhtaCatalog\Model\Config\Source\Frequency::CRON_EVERY:
-                $days = '*/1';
-                break;
-            default:
-                $days = '*/7';
-        }
+        $enabled = (int)$this->getValue();
 
         if ($enabled) {
+            $time = $this->getData(self::XML_PATH_SCHEDULE_TIME);
+            $frequency = $this->getData(self::XML_PATH_SCHEDULE_FREQUENCY);
+
+            switch ($frequency) {
+                case \Perspective\NovaposhtaCatalog\Model\Config\Source\Frequency::CRON_SEVEN:
+                    $days = '*/7';
+                    break;
+                case \Perspective\NovaposhtaCatalog\Model\Config\Source\Frequency::CRON_FIFTEEN:
+                    $days = '*/15';
+                    break;
+                case \Perspective\NovaposhtaCatalog\Model\Config\Source\Frequency::CRON_THIRTY:
+                    $days = '*/30';
+                    break;
+                case \Perspective\NovaposhtaCatalog\Model\Config\Source\Frequency::CRON_EVERY:
+                    $days = '*/1';
+                    break;
+                default:
+                    $days = '*/7';
+            }
+
             // @codingStandardsIgnoreStart
             $cronExprArray = [
                 intval($time[1]),                                 # Minute
@@ -90,23 +90,20 @@ class Cron extends \Magento\Framework\App\Config\Value implements ConfigSettings
         }
 
         try {
-            $this->_configValueFactory->create()->load(
+            $this->configWriter->save(
                 self::CRON_STRING_PATH,
-                'path'
-            )->setValue(
-                $cronExprString
-            )->setPath(
-                self::CRON_STRING_PATH
-            )->save();
+                $cronExprString,
+                ScopeConfigInterface::SCOPE_TYPE_DEFAULT,
+                0
+            );
 
-            $this->_configValueFactory->create()->load(
+            $this->configWriter->save(
                 self::CRON_MODEL_PATH,
-                'path'
-            )->setValue(
-                $this->_runModelPath
-            )->setPath(
-                self::CRON_MODEL_PATH
-            )->save();
+                $this->_runModelPath,
+                ScopeConfigInterface::SCOPE_TYPE_DEFAULT,
+                0
+            );
+            $this->cacheTypeList->invalidate(Config::TYPE_IDENTIFIER);
         } catch (\Exception $e) {
             throw new \Magento\Framework\Exception\LocalizedException(__('We can\'t save the Cron expression.'));
         }

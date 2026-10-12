@@ -2,8 +2,6 @@
 
 namespace Perspective\NovaposhtaCatalog\Model\Update;
 
-use Exception;
-use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Serialize\SerializerInterface;
 use Perspective\NovaposhtaCatalog\Api\Data\UpdateEntityInterface;
 use Perspective\NovaposhtaCatalog\Helper\Config;
@@ -60,6 +58,8 @@ class City implements UpdateEntityInterface
      */
     private Post $postService;
 
+    private DirectorySnapshot $snapshot;
+
     /**
      * City constructor.
      *
@@ -80,7 +80,8 @@ class City implements UpdateEntityInterface
         \Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City $cityResourceModel,
         CollectionFactory $cityResourceModelCollectionFactory,
         LoggerInterface $logger,
-        Post $postService
+        Post $postService,
+        DirectorySnapshot $snapshot
     ) {
         $this->cityResourceModelCollectionFactory = $cityResourceModelCollectionFactory;
         $this->cityResourceModel = $cityResourceModel;
@@ -90,6 +91,7 @@ class City implements UpdateEntityInterface
         $this->logger = $logger;
         $this->serializer = $serializer;
         $this->postService = $postService;
+        $this->snapshot = $snapshot;
     }
 
     /**
@@ -101,22 +103,16 @@ class City implements UpdateEntityInterface
         $error = true;
         $data = [];
         if ($this->configHelper->isEnabled()) {
-            $citiesListFromApiEndpoint = $this->getDataFromEndpoint();
-            if (property_exists($citiesListFromApiEndpoint, 'success') && $citiesListFromApiEndpoint->success === true) {
-                try {
-                    $error = false;
-                    $message = 'In Progress..';
-                    $this->setDataToDB($citiesListFromApiEndpoint->data);
-                } catch (AlreadyExistsException $e) {
-                    $error = true;
-                    $message = "Key already exist\n" . $e->getMessage();
-                }
-                if (!$error) {
-                    $error = false;
-                    $message = "Successfully synced";
-                    $this->cronSyncDateLastUpdate
-                        ->updateSyncDate($this->cronSyncDateLastUpdate::XML_PATH_LAST_SYNC_CITY);
-                }
+            try {
+                $this->snapshot->withLock('perspective_novaposhta_cities_sync', function () {
+                    $this->setDataToDB($this->snapshot->getResponseData($this->getDataFromEndpoint()));
+                    $this->cronSyncDateLastUpdate->updateSyncDate(CronSyncDateLastUpdate::XML_PATH_LAST_SYNC_CITY);
+                });
+                $error = false;
+                $message = 'Successfully synced';
+            } catch (\Throwable $e) {
+                $message = $e->getMessage();
+                $this->logger->error('Nova Poshta cities sync failed: ' . $message);
             }
         }
         return [
@@ -139,8 +135,7 @@ class City implements UpdateEntityInterface
         $this->postService->setTimeout(60);
         $resultFormApi = $this->serializer->unserialize(
             $this->postService
-                ->execute('Address', 'getCities', $paramsForRequest)
-                ->get()
+                ->getResponse('Address', 'getCities', $paramsForRequest)
                 ->getBody()
         );
         return $resultFormApi;
@@ -152,37 +147,13 @@ class City implements UpdateEntityInterface
      */
     public function setDataToDB(...$params)
     {
-        $data = $params[0];
-        $entireTableColl = $this->cityResourceModelCollectionFactory->create();
-        $entireIds = $entireTableColl->getAllIds();
-        foreach ($data as $idx => $datum) {
-            if (!is_object($datum)) {
-                continue;
-            }
-            $filledModel = $this->prepareData($datum);
-            /**@var $collection \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\Collection */
-            $singleItem = $this->cityFactory->create();
-            $this->cityResourceModel->load($singleItem, $filledModel->getRef(), $filledModel::REF);
-            if ($singleItem->getRef()) {
-                try {
-                    $filledModel->setId($singleItem->getId());
-                } catch (Exception $exception) {
-                    $this->logger->debug(($exception->getMessage()));
-                    $this->logger->debug(($exception->getTraceAsString()));
-                }
-                $this->cityResourceModel->save($filledModel);
-                unset($entireIds[array_search($singleItem->getId(), $entireIds)]);
-            } else {
-                $this->cityResourceModel->save($filledModel);
-            }
-        }
-        if (count($entireIds) > 0) {
-            foreach ($entireIds as $remIdx => $remItem) {
-                $cleanUpModel = $this->cityFactory->create();
-                $this->cityResourceModel->load($cleanUpModel, $remItem, 'id');
-                $this->cityResourceModel->delete($cleanUpModel);
-            }
-        }
+        $models = $this->snapshot->prepare($params[0] ?? null, fn ($row) => $this->prepareData($row));
+        $this->snapshot->save(
+            $models,
+            $this->cityResourceModel,
+            fn () => $this->cityResourceModelCollectionFactory->create(),
+            'perspective_novaposhta_cities_sync'
+        );
     }
 
     /**
