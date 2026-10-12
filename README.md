@@ -1,29 +1,146 @@
-## Perspective Novaposhta Catalog 
+# Perspective Nova Poshta Catalog
 
-### Install this package use the following steps:
+**Українська** · [English](README.en.md)
 
-1. Go to Magento 2 root directory.  
-   1. For Magento 2 (from 2.4.5+) and direct installation from B use following command enter the following commands:  
-       ```
-       composer require perspectiveteam/module-novaposhtacatalog:"*"  
-       ```
-2. Wait while all dependencies are update. 
-3. Make an ordinary setup for the module
-   ![np-catalog.png](images/np-catalog.png)
-   1. Add API key to the module configuration
-   2. Save Configuration
-   3. Enable cron jobs for the module
-   4. You can manually schedule cron jobs for the module
+Nova Poshta Catalog завантажує довідники Нової пошти у Magento: міста,
+відділення, поштомати, вулиці, області й типи пакування. Дані зберігаються
+у вашому магазині, де їх можуть використовувати модулі доставки та інші інтеграції.
 
-### Area synchronization
+В адмінпанелі можна переглядати довідники, налаштовувати оновлення за розкладом
+і зіставляти області з регіонами Magento. API-ключ і всі налаштування модуля
+зібрані в одному розділі.
 
-Area synchronization updates existing records and inserts new ones. It never
-automatically deletes areas that are absent from the API response. Empty lists,
-invalid rows, duplicate references, and responses missing any stored reference
-are rejected without changing the directory or its last successful sync date.
-Concurrent writes are protected by Magento's configured lock manager.
+![Налаштування Nova Poshta Catalog та доступ до довідників в адмінпанелі Magento](images/admin-overview.png)
 
-If Nova Poshta permanently removes an area, review and remove the local record
-explicitly before synchronizing again. On an empty directory, completeness cannot
-be inferred from existing references; the first import validates the received rows.
+*Stores → Configuration → Perspective Studio → Nova Poshta Catalog.*
 
+## Довідники
+
+| Довідник | Як його можна використовувати |
+| --- | --- |
+| Області | Зіставляти регіони Magento з областями Нової пошти |
+| Міста | Шукати населені пункти й заповнювати адреси у ваших інтеграціях |
+| Відділення та поштомати | Переглядати адреси, міста й статуси роботи |
+| Типи відділень | Розрізняти типи точок видачі |
+| Вулиці | Заповнювати адреси в інтеграціях із доставкою до дверей |
+| Типи пакування | Отримувати дані про пакування для сумісних модулів доставки |
+
+Для вибору доставки під час оформлення замовлення, розрахунку тарифів
+і створення ТТН потрібен окремий модуль доставки.
+
+## Перегляд відділень
+
+У списку відділень видно назву, місто, адресу та статус роботи.
+Можна відфільтрувати записи, вибрати потрібні колонки й переходити між сторінками.
+Через **View Lists** також відкриваються списки міст, вулиць, типів відділень
+і пакування.
+
+![Довідник відділень Нової пошти з адресами та статусами роботи](images/admin-warehouses.png)
+
+*Довідник у демонстраційному магазині. Кількість записів залежить від завантажених даних.*
+
+## Розклад оновлення
+
+Виберіть час і частоту в **Schedule**, щоб модуль оновлював довідники автоматично.
+Тут же видно дату останньої синхронізації кожного довідника.
+Для виконання розкладу має працювати cron Magento.
+
+![Налаштування розкладу та дати останніх синхронізацій довідників](images/admin-schedule.png)
+
+*Налаштування щоденного оновлення.*
+
+## Зіставлення областей
+
+У **Directory Map** виберіть, якій області Нової пошти відповідає регіон Magento.
+Модуль уже містить початкові відповідності. Їх можна змінити в адмінпанелі
+для всього магазину, окремого вебсайту або Store View, без редагування коду.
+
+![Зіставлення областей Нової пошти з регіонами Magento у Directory Map](images/admin-directory-map.png)
+
+*Область Нової пошти й відповідний регіон Magento.*
+
+## Як почати
+
+Коли розробник встановить модуль:
+
+1. Відкрийте **Stores → Configuration → Perspective Studio → Nova Poshta Catalog**.
+2. Виберіть **Default Config**, у **General settings** увімкніть модуль і введіть
+   API-ключ із [кабінету Нової пошти](https://my.novaposhta.ua/settings/index#apikeys).
+3. У **Schedule** увімкніть **Enable Scheduled Synchronization**, виберіть час
+   і частоту, натисніть **Save Config**.
+4. Дочекайтеся синхронізації та відкрийте довідники через **View Lists**.
+5. Перевірте **Directory Map**, коли модуль завантажить області.
+
+Для першого імпорту відділень і вулиць може знадобитися більше часу:
+модуль обробляє дані багатьох міст. API-ключ на скриншоті прихований.
+
+## Для розробника
+
+### Вимоги
+
+Для роботи потрібен API-ключ Нової пошти.
+
+### Встановлення
+
+Виконайте з кореня Magento:
+
+```bash
+composer require perspectiveteam/module-novaposhtacatalog
+php bin/magento module:enable Perspective_NovaposhtaCatalog
+php bin/magento setup:upgrade
+php bin/magento cache:clean config layout block_html
+```
+
+<details>
+<summary><strong>Інтеграція та синхронізація</strong></summary>
+
+### Точки інтеграції
+
+| Компонент | Призначення |
+| --- | --- |
+| [Api/](Api/) | Репозиторії областей, міст, відділень і вулиць та інтерфейси даних |
+| [Helper/Config.php](Helper/Config.php) | `getDirectoryMap($storeId)` повертає `[regionCode => areaRef]` для вибраного scope |
+| [Service/DirectorySyncMapper.php](Service/DirectorySyncMapper.php) | `getRegionIdToAreaRefMap()` зіставляє ID регіонів Magento з Ref областей |
+| [etc/db_schema.xml](etc/db_schema.xml) | Локальні таблиці довідників |
+| [Test/Unit/](Test/Unit/) | Тести конфігурації Directory Map і захисту синхронізації областей |
+
+Отримуйте репозиторії через Magento DI. Плагін до
+`Magento\Directory\Model\Region::getName()` повертає українські назви
+для відомих кодів регіонів UA.
+
+### Як працює синхронізація
+
+- Cron-група: `perspective_novaposhta_catalog`; job: `update_novaposhta_catalog`.
+  Модуль імпортує довідники послідовно: типи відділень, пакування, області,
+  міста, відділення, вулиці.
+- Data patch під час встановлення додає початкове завдання cron.
+  Збереження поля Frequency в Admin формує регулярний розклад.
+- Варіанти **7 days**, **15 days** і **30 days** задають крок дня місяця
+  у cron-виразі. Це не фіксований інтервал між запусками.
+  Дати синхронізації зберігаються в UTC.
+- Під час оновлення областей модуль зберігає локальні ID й додає нові записи.
+  Він відхиляє порожні та некоректні відповіді, дублікати Ref і списки,
+  у яких немає хоча б одного збереженого Ref. Довідник і дата успішної
+  синхронізації залишаються без змін. Запис відбувається у транзакції
+  з блокуванням через Magento Lock Manager.
+- Області не видаляються автоматично. Якщо область остаточно зникла з API,
+  перевірте й видаліть її локальний запис перед наступним імпортом.
+  На першому імпорті модуль перевіряє валідність отриманих рядків.
+- Міста, типи відділень і пакування також проходять перевірку повноти.
+  `DirectorySnapshot` зберігає їх без автоматичного видалення записів.
+  Модуль обробляє відділення й вулиці по містах. Якщо імпорт одного міста
+  завершується помилкою, дані вже оброблених міст залишаються збереженими.
+- Ручні оновлення у Store View та кнопки синхронізації в таблицях запускають
+  імпорт у межах HTTP-запиту. Для великих довідників використовуйте cron.
+- Успішний статус загального cron-завдання не означає, що всі довідники
+  оновилися. Перевіряйте дані та журнали Magento: сама дата оновлення
+  не підтверджує повноту імпорту для всіх міст.
+- Доступ до конфігурації: `Perspective_NovaposhtaCatalog::settings`.
+  Списки відкриваються у Default Config; окремої таблиці областей в Admin немає.
+  Приховуйте API-ключі в логах і матеріалах, які передаєте іншим.
+
+</details>
+
+## Ліцензія
+
+[MIT](LICENSE.md) · Perspective Studio
