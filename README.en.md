@@ -8,7 +8,8 @@ in your store, where shipping modules and other integrations can use it.
 
 In Magento Admin, you can browse the directories, schedule updates, and map
 Nova Poshta areas to Magento regions. The API key and all module settings
-are in one section.
+are in one section. The module retains historical records and checks API
+responses before updating, so a temporary failure does not remove available addresses.
 
 ![Nova Poshta Catalog settings and directory access in Magento Admin](images/admin-overview.png)
 
@@ -33,6 +34,9 @@ require a separate shipping module.
 The warehouse list shows each branch's name, city, address, and operating status.
 You can filter records, choose columns, and move between pages.
 **View Lists** also opens cities, streets, warehouse types, and package types.
+The grids include **Active**, **Missing confirmations**, and **Last seen**
+columns and a **Deactivate selected** action. Deactivation keeps the record
+in the database. If it appears in the API again, synchronization can reactivate it.
 
 ![Nova Poshta branch directory with addresses and operating statuses](images/admin-warehouses.png)
 
@@ -47,6 +51,40 @@ Magento cron must be running to carry out the schedule.
 ![Update schedule settings and last synchronization dates](images/admin-schedule.png)
 
 *Settings for daily updates.*
+
+## Protecting directories during updates
+
+When a record disappears from a Nova Poshta response, the module checks again.
+By default, a record becomes inactive after two confirmations of its absence,
+at least 24 hours apart. Failed or rejected updates do not count.
+The local ID and data remain available for historical lookups.
+
+If a response is missing more than 20% of active records, the module rejects
+the update for that directory or city before saving any changes.
+This threshold helps protect stored data from incomplete API responses.
+
+These settings are available under **Default Config → Synchronization safety**:
+
+| Setting | Default | What it controls |
+| --- | --- | --- |
+| Missing confirmations | 2 | How many confirmations of absence are needed to deactivate a record |
+| Hours between confirmations | 24 | Minimum hours between confirmations |
+| Maximum missing active references (%) | 20 | The share of missing active records an update can accept |
+
+![Settings for missing-record confirmations and the directory safety threshold](images/admin-sync-safety.png)
+
+*Default synchronization safety settings.*
+
+Queries for new address selections check whether records and their related
+directories are active. Branches must also have Nova Poshta's **Working** status:
+any other status makes a branch inactive during import without waiting for
+missing-record confirmations. When a record returns in the API, the module
+resets its absence counter and reactivates it; branches still require **Working** status.
+
+If the API limits request frequency or a temporary connection error occurs,
+the module waits and retries the request. Attempts and total waiting time
+are bounded. If retries fail, data for the current directory or city stays
+unchanged; synchronization can be retried later.
 
 ## Region mapping
 
@@ -100,12 +138,29 @@ php bin/magento cache:clean config layout block_html
 | [Api/](Api/) | Area, city, warehouse, and street repositories and data interfaces |
 | [Helper/Config.php](Helper/Config.php) | `getDirectoryMap($storeId)` returns a `[regionCode => areaRef]` map for the selected scope |
 | [Service/DirectorySyncMapper.php](Service/DirectorySyncMapper.php) | `getRegionIdToAreaRefMap()` maps Magento region IDs to Nova Poshta area references |
+| [Model/Availability.php](Model/Availability.php) | Filters available records for new selections, including related directories |
+| [Model/Update/SyncPolicy.php](Model/Update/SyncPolicy.php) | Checks the missing-record threshold and manages deactivation |
+| [Service/HTTP/RateLimitRetry.php](Service/HTTP/RateLimitRetry.php) | Retries requests after rate limits or transport failures |
 | [etc/db_schema.xml](etc/db_schema.xml) | Local directory tables |
-| [Test/Unit/](Test/Unit/) | Directory Map configuration and area synchronization safeguard tests |
+| [Test/Unit/](Test/Unit/) | Tests for Directory Map, synchronization safeguards, and request retries |
 
 Get repositories through Magento DI. A plugin on
 `Magento\Directory\Model\Region::getName()` returns Ukrainian names
 for known UA region codes.
+
+### Availability and historical records
+
+City lookups by name and warehouse and street queries by city use
+`Availability`. A city requires an active area; streets and warehouses also
+require an active city. Warehouses need an active warehouse type and
+`Working` status. Integrations using their own collections should explicitly
+apply this filter for new selections.
+
+General `getList(SearchCriteria)` methods and ID or Ref lookups retain access
+to history and may return inactive records. All six tables include
+`is_active`, `last_seen_at`, `missing_successful_syncs`, and `last_missing_at`.
+Bulk deactivation in Admin does not permanently exclude records from synchronization:
+a later import can reactivate a record present in the API.
 
 ### How synchronization works
 
@@ -117,17 +172,24 @@ for known UA region codes.
 - **7 days**, **15 days**, and **30 days** set a day-of-month step in the cron
   expression, not a fixed elapsed interval between runs.
   Synchronization dates are stored in UTC.
-- Area updates preserve local IDs and insert new records. The module rejects
-  empty or malformed responses, duplicate references, and lists missing any
-  stored reference. The directory and its last successful synchronization date
-  stay unchanged. Writes run in a transaction with Magento Lock Manager.
-- Areas are never deleted automatically. If an area permanently disappears from
-  the API, review and remove its local record before the next import.
-  On the first import, the module validates the received rows.
-- City, warehouse type, and package type imports also check completeness.
-  `DirectorySnapshot` saves them without automatically deleting records.
-  The module processes warehouses and streets per city. If one city fails,
-  data already saved for earlier cities stays in place.
+- `DirectorySnapshot` validates rows and unique references before writing,
+  preserves local IDs, and uses transactions and Magento Lock Manager.
+  Empty responses are rejected for entire directories. An empty warehouse
+  or street list for an individual city is checked against the missing-record threshold.
+- The missing active reference threshold is checked before writing data or
+  counters. An accepted response updates `last_seen_at` for present records
+  and resets their absence confirmations. Missing records are deactivated
+  according to `SyncPolicy`, with their data retained. Failed and rejected
+  imports do not change counters; rerunning before the configured interval
+  does not add a confirmation.
+- Warehouses and streets are processed per city. Before saving a city,
+  `PagedDirectory` fetches all pages and checks their completeness and
+  consistent `totalCount`. If processing fails for a city, its changes
+  are not saved; data already saved for earlier cities stays in place.
+- `RateLimitRetry` retries the same request or page on HTTP 429, an API
+  `too many requests` message, or a transport failure. The limit is 5 attempts
+  in total and 180 seconds of cumulative delays, excluding request execution
+  time. It respects `Retry-After`; otherwise, the delay increases between attempts.
 - Individual Store View updates and grid synchronization buttons run the import
   within the HTTP request. Use cron for large directories.
 - A successful overall cron status does not mean every directory was updated.
