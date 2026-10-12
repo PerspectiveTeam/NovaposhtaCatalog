@@ -5,6 +5,7 @@ namespace Perspective\NovaposhtaCatalog\Controller\Adminhtml\Sync;
 
 use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
+use Magento\Framework\App\Action\HttpPostActionInterface;
 use Magento\Framework\Controller\ResultFactory;
 use Perspective\NovaposhtaCatalog\Model\Update\Street as UpdateHelper;
 
@@ -12,8 +13,10 @@ use Perspective\NovaposhtaCatalog\Model\Update\Street as UpdateHelper;
  * Class Streets
  * Sync Types of novaposhta Streets and sets to db (Admin)
  */
-class Streets extends Action
+class Streets extends Action implements HttpPostActionInterface
 {
+    public const ADMIN_RESOURCE = 'Perspective_NovaposhtaCatalog::NovaposhtaCatalog';
+
     /**
      * @var \Magento\Framework\Controller\Result\JsonFactory
      */

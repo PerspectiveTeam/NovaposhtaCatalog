@@ -81,6 +81,15 @@
                     <frontend_model>Perspective\NovaposhtaCatalog\Update\Streets</frontend_model>
                     <comment>Can be used after cities list update</comment>
                 </field>
+                <field id="update_areas" translate="label" type="button" sortOrder="3" showInDefault="1"
+                       showInWebsite="0" showInStore="1">
+                    <label>Schedule the update of areas</label>
+                    <depends>
+                        <field id="active">1</field>
+                    </depends>
+                    <frontend_model>Perspective\NovaposhtaCatalog\Update\Areas</frontend_model>
+                    <comment>Sync list of Ukrainian oblasts</comment>
+                </field>
             </group>
             <group id="view" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="1"
                    showInStore="0">
@@ -124,6 +133,14 @@
                         <field id="active">1</field>
                     </depends>
                     <frontend_model>Perspective\NovaposhtaCatalog\View\Grid\Cities</frontend_model>
+                </field>
+                <field id="view_list_of_areas" translate="label" type="button" sortOrder="3" showInDefault="1"
+                       showInWebsite="0" showInStore="0">
+                    <label>View list of areas</label>
+                    <depends>
+                        <field id="active">1</field>
+                    </depends>
+                    <frontend_model>Perspective\NovaposhtaCatalog\View\Grid\Areas</frontend_model>
                 </field>
             </group>
             <group id="schedule" translate="label" type="text" sortOrder="3" showInDefault="1" showInWebsite="0" showInStore="0">
@@ -185,6 +202,20 @@
                     <depends>
                         <field id="enabled">1</field>
                     </depends>
+                </field>
+                <field id="last_sync_areas" translate="label" type="label" sortOrder="100" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Last Areas Synchronization</label>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+            </group>
+            <group id="directory_map" translate="label" type="text" sortOrder="5" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Directory Map</label>
+                <field id="sync" translate="label" type="text" sortOrder="5" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Ranges</label>
+                    <frontend_model>Perspective\NovaposhtaCatalog\Block\Adminhtml\Form\Field\DirectoryMap</frontend_model>
+                    <backend_model>Magento\Config\Model\Config\Backend\Serialized\ArraySerialized</backend_model>
                 </field>
             </group>
         </section>

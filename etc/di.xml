@@ -1,6 +1,15 @@
 <?xml version="1.0"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <type name="Magento\Directory\Model\Region">
+        <plugin name="perspective_novaposhta_catalog_region_ua_name"
+                type="Perspective\NovaposhtaCatalog\Plugin\Directory\RegionNamePlugin"/>
+    </type>
+
+    <preference for="Perspective\NovaposhtaCatalog\Api\AreaRepositoryInterface"
+                type="Perspective\NovaposhtaCatalog\Model\AreaRepository" />
+    <preference for="Perspective\NovaposhtaCatalog\Api\Data\AreaSearchResultsInterface"
+                type="Magento\Framework\Api\SearchResults"/>
     <preference for="Perspective\NovaposhtaCatalog\Api\CityRepositoryInterface"
                 type="Perspective\NovaposhtaCatalog\Model\CityRepository" />
     <preference for="Perspective\NovaposhtaCatalog\Api\WarehouseRepositoryInterface"
@@ -57,6 +66,14 @@
             <argument name="template" xsi:type="string">Perspective_NovaposhtaCatalog::system/config/collect.phtml</argument>
         </arguments>
     </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\Update\Areas" type="Perspective\NovaposhtaCatalog\Block\System\Config\Collect">
+        <arguments>
+            <argument name="actionUrl" xsi:type="string">novaposhtacatalog/sync/area</argument>
+            <argument name="buttonName" translatable="true" xsi:type="string">Update areas list</argument>
+            <argument name="buttonComment" translatable="true" xsi:type="string">Gets update of Novaposhta areas catalog</argument>
+            <argument name="template" xsi:type="string">Perspective_NovaposhtaCatalog::system/config/collect.phtml</argument>
+        </arguments>
+    </virtualType>
     <virtualType name="Perspective\NovaposhtaCatalog\Update\Streets" type="Perspective\NovaposhtaCatalog\Block\System\Config\Collect">
         <arguments>
             <argument name="actionUrl" xsi:type="string">novaposhtacatalog/sync/streets</argument>
@@ -105,6 +122,45 @@
             <argument name="template" xsi:type="string">Perspective_NovaposhtaCatalog::system/config/redirect.phtml</argument>
         </arguments>
     </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\View\Grid\Areas" type="Perspective\NovaposhtaCatalog\Block\System\Config\Collect">
+        <arguments>
+            <argument name="actionUrl" xsi:type="string">novaposhtacatalog/view/areadata</argument>
+            <argument name="buttonName" translatable="true" xsi:type="string">View List Of Areas</argument>
+            <argument name="buttonComment" translatable="true" xsi:type="string">View List Of Areas</argument>
+            <argument name="template" xsi:type="string">Perspective_NovaposhtaCatalog::system/config/redirect.phtml</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="Perspective\NovaposhtaCatalog\Grid\SyncButton\Areas" type="Perspective\NovaposhtaCatalog\Block\Adminhtml\Grid\SyncButton">
+        <arguments>
+            <argument name="route" xsi:type="string">novaposhtacatalog/sync/area</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\Grid\SyncButton\Cities" type="Perspective\NovaposhtaCatalog\Block\Adminhtml\Grid\SyncButton">
+        <arguments>
+            <argument name="route" xsi:type="string">novaposhtacatalog/sync/city</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\Grid\SyncButton\Streets" type="Perspective\NovaposhtaCatalog\Block\Adminhtml\Grid\SyncButton">
+        <arguments>
+            <argument name="route" xsi:type="string">novaposhtacatalog/sync/streets</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\Grid\SyncButton\Warehouses" type="Perspective\NovaposhtaCatalog\Block\Adminhtml\Grid\SyncButton">
+        <arguments>
+            <argument name="route" xsi:type="string">novaposhtacatalog/sync/warehouse</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\Grid\SyncButton\WarehouseTypes" type="Perspective\NovaposhtaCatalog\Block\Adminhtml\Grid\SyncButton">
+        <arguments>
+            <argument name="route" xsi:type="string">novaposhtacatalog/sync/warehousetype</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="Perspective\NovaposhtaCatalog\Grid\SyncButton\PackageTypes" type="Perspective\NovaposhtaCatalog\Block\Adminhtml\Grid\SyncButton">
+        <arguments>
+            <argument name="route" xsi:type="string">novaposhtacatalog/sync/package</argument>
+        </arguments>
+    </virtualType>
 
     <type name="Magento\Framework\View\Element\UiComponent\DataProvider\CollectionFactory">
         <arguments>
@@ -114,6 +170,7 @@
                 <item name="streets_list_data_source" xsi:type="string">Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street\Collection</item>
                 <item name="package_types_list_data_source" xsi:type="string">Perspective\NovaposhtaCatalog\Model\ResourceModel\Package\Package\Collection</item>
                 <item name="city_list_data_source" xsi:type="string">Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\Collection</item>
+                <item name="area_list_data_source" xsi:type="string">Perspective\NovaposhtaCatalog\Model\ResourceModel\Area\Area\Collection</item>
             </argument>
         </arguments>
     </type>
@@ -145,6 +202,13 @@
         </arguments>
     </type>
     <!--    City grid-->
+    <!--    Area grid-->
+    <type name="Perspective\NovaposhtaCatalog\Model\ResourceModel\Area\Area\Grid">
+        <arguments>
+            <argument name="collection" xsi:type="object" shared="false">Perspective\NovaposhtaCatalog\Model\ResourceModel\Area\Area\Collection</argument>
+        </arguments>
+    </type>
+    <!--    Area grid-->
     <!--    Warehouse types grid-->
     <type name="Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\WarehouseTypes\Grid">
         <arguments>
@@ -157,6 +221,7 @@
             <argument name="entityToUpdate" xsi:type="array">
                 <item name="warehouse_types" xsi:type="object">Perspective\NovaposhtaCatalog\Cron\Sync\WarehouseType</item>
                 <item name="packages" xsi:type="object">Perspective\NovaposhtaCatalog\Cron\Sync\Package</item>
+                <item name="areas" xsi:type="object">Perspective\NovaposhtaCatalog\Cron\Sync\Area</item>
                 <item name="cities" xsi:type="object">Perspective\NovaposhtaCatalog\Cron\Sync\City</item>
                 <item name="warehouses" xsi:type="object">Perspective\NovaposhtaCatalog\Cron\Sync\Warehouse</item>
                 <item name="streets" xsi:type="object">Perspective\NovaposhtaCatalog\Cron\Sync\Streets</item>
@@ -186,6 +251,11 @@
         </arguments>
     </type>
     <type name="Perspective\NovaposhtaCatalog\Model\Update\WarehouseType">
+        <arguments>
+            <argument xsi:type="object" name="serializer">Perspective\NovaposhtaCatalog\Service\JsonAsObject</argument>
+        </arguments>
+    </type>
+    <type name="Perspective\NovaposhtaCatalog\Model\Update\Area">
         <arguments>
             <argument xsi:type="object" name="serializer">Perspective\NovaposhtaCatalog\Service\JsonAsObject</argument>
         </arguments>

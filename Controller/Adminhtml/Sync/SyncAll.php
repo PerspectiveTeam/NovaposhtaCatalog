@@ -4,6 +4,7 @@
 namespace Perspective\NovaposhtaCatalog\Controller\Adminhtml\Sync;
 
 use Magento\Backend\App\Action\Context;
+use Magento\Framework\App\Action\HttpPostActionInterface;
 use Magento\Framework\Controller\ResultFactory;
 use Magento\Framework\Json\Helper\Data;
 use Magento\Framework\View\Result\PageFactory;
@@ -14,8 +15,9 @@ use Perspective\NovaposhtaCatalog\Model\Update\Street;
  * Class SyncAll
  * Syncs all data with api
  */
-class SyncAll extends \Magento\Backend\App\Action
+class SyncAll extends \Magento\Backend\App\Action implements HttpPostActionInterface
 {
+    public const ADMIN_RESOURCE = 'Perspective_NovaposhtaCatalog::NovaposhtaCatalog';
 
     /**
      * @var \Magento\Framework\View\Result\PageFactory

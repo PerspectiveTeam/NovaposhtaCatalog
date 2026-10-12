@@ -5,6 +5,7 @@ namespace Perspective\NovaposhtaCatalog\Controller\Adminhtml\Sync;
 
 use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
+use Magento\Framework\App\Action\HttpPostActionInterface;
 use Magento\Framework\Controller\ResultFactory;
 use Perspective\NovaposhtaCatalog\Model\Update\City as CityUpdate;
 
@@ -12,8 +13,10 @@ use Perspective\NovaposhtaCatalog\Model\Update\City as CityUpdate;
  * Class City
  * Sync Types of novaposhta city and sets to db (Admin)
  */
-class City extends Action
+class City extends Action implements HttpPostActionInterface
 {
+    public const ADMIN_RESOURCE = 'Perspective_NovaposhtaCatalog::NovaposhtaCatalog';
+
     /**
      * @var \Magento\Framework\Controller\Result\JsonFactory
      */

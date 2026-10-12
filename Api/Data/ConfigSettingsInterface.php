@@ -36,4 +36,5 @@ interface ConfigSettingsInterface
     const XML_PATH_LAST_SYNC_WAREHOUSE_TYPES = self::MODULE_SECTION_NAME . '/schedule/last_sync_warehouse_types';
     const XML_PATH_LAST_SYNC_PACKAGE_TYPES = self::MODULE_SECTION_NAME . '/schedule/last_sync_package_types';
     const XML_PATH_LAST_SYNC_STREETS = self::MODULE_SECTION_NAME . '/schedule/last_sync_streets';
+    const XML_PATH_LAST_SYNC_AREAS = self::MODULE_SECTION_NAME . '/schedule/last_sync_areas';
 }

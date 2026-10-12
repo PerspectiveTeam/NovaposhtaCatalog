@@ -1,6 +1,6 @@
 <?php
 
-namespace Perspective\Novaposhta\Controller\Adminhtml\MassAction;
+namespace Perspective\NovaposhtaCatalog\Controller\Adminhtml\MassAction;
 
 use Magento\Backend\App\Action\Context;
 use Magento\Ui\Component\MassAction\Filter;

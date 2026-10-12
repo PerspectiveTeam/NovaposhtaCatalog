@@ -76,7 +76,7 @@
     <column xsi:type="longtext" name="delivery_5" nullable="true" comment="delivery_5"/>
     <column xsi:type="longtext" name="delivery_6" nullable="true" comment="delivery_6"/>
     <column xsi:type="longtext" name="delivery_7" nullable="true" comment="delivery_7"/>
-    <column xsi:type="longtext" name="area" nullable="true" comment="area"/>
+    <column xsi:type="varchar" name="area" nullable="true" length="255" comment="area"/>
     <column xsi:type="longtext" name="settlement_type" nullable="true" comment="settlement_type"/>
     <column xsi:type="longtext" name="is_branch" nullable="true" comment="is_branch"/>
     <column xsi:type="longtext" name="prevent_entry_new_streets_user" nullable="true" comment="prevent_entry_new_streets_user"/>
@@ -93,7 +93,23 @@
       <index referenceId="PERSPECTIVE_NOVAPOSHTA_CATALOG_CITIES_REF" indexType="btree">
           <column name="ref"/>
       </index>
+      <index referenceId="PERSPECTIVE_NOVAPOSHTA_CATALOG_CITIES_AREA" indexType="btree">
+          <column name="area"/>
+      </index>
   </table>
+    <table name="perspective_novaposhta_catalog_areas" resource="default" engine="innodb" comment="Areas from Nova Poshta API">
+        <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="Entity Id"/>
+        <column xsi:type="varchar" name="ref" nullable="false" length="255" comment="ref"/>
+        <column xsi:type="varchar" name="areas_center" nullable="true" length="255" comment="areas_center"/>
+        <column xsi:type="longtext" name="description_ua" nullable="true" comment="description_ua"/>
+        <column xsi:type="longtext" name="description_ru" nullable="true" comment="description_ru"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="PERSPECTIVE_NOVAPOSHTA_CATALOG_AREAS_REF">
+            <column name="ref"/>
+        </constraint>
+    </table>
     <table name="perspective_novaposhta_catalog_street" resource="default" engine="innodb"
            comment="NovaPoshta Street entity">
         <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true"

@@ -6,6 +6,7 @@ namespace Perspective\NovaposhtaCatalog\Controller\Adminhtml\Sync;
 use Exception;
 use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
+use Magento\Framework\App\Action\HttpPostActionInterface;
 use Magento\Framework\Controller\ResultFactory;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Json\Helper\Data;
@@ -17,8 +18,9 @@ use Psr\Log\LoggerInterface;
  * Class SyncAll
  * Syncs all data with api
  */
-class Schedule extends Action
+class Schedule extends Action implements HttpPostActionInterface
 {
+    public const ADMIN_RESOURCE = 'Perspective_NovaposhtaCatalog::NovaposhtaCatalog';
 
     /**
      * @var \Magento\Framework\View\Result\PageFactory

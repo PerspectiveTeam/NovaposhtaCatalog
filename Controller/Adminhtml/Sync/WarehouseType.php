@@ -5,6 +5,7 @@ namespace Perspective\NovaposhtaCatalog\Controller\Adminhtml\Sync;
 
 use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
+use Magento\Framework\App\Action\HttpPostActionInterface;
 use Magento\Framework\Controller\ResultFactory;
 use Perspective\NovaposhtaCatalog\Model\Update\WarehouseType as UpdateHelper;
 
@@ -12,8 +13,10 @@ use Perspective\NovaposhtaCatalog\Model\Update\WarehouseType as UpdateHelper;
  * Class WarehouseType
  * Sync Types of novaposhta WarehouseType and sets to db (Admin)
  */
-class WarehouseType extends Action
+class WarehouseType extends Action implements HttpPostActionInterface
 {
+    public const ADMIN_RESOURCE = 'Perspective_NovaposhtaCatalog::NovaposhtaCatalog';
+
     /**
      * @var \Magento\Framework\Controller\Result\JsonFactory
      */
