@@ -53,7 +53,8 @@ class CityRepository implements CityRepositoryInterface
      * @param \Perspective\NovaposhtaCatalog\Model\Warehouse\WarehouseStatuses $warehouseStatuses
      * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City $cityResourceModel
      * @param \Perspective\NovaposhtaCatalog\Api\Data\CitySearchResultsInterfaceFactory $searchResultsFactory
-     * @param \Magento\Framework\Api\SearchCriteria\CollectionProcessorInterface $collectionProcessor
+     * @param \Magento\Framework\Api\SearchCriteria\CollectionProcessorInterface $collectionProcessor,
+        private Availability $availability
      */
     public function __construct(
         CityFactory $cityFactory,
@@ -61,7 +62,8 @@ class CityRepository implements CityRepositoryInterface
         WarehouseStatuses $warehouseStatuses,
         City $cityResourceModel,
         CitySearchResultsInterfaceFactory $searchResultsFactory,
-        CollectionProcessorInterface $collectionProcessor
+        CollectionProcessorInterface $collectionProcessor,
+        private Availability $availability
     ) {
         $this->cityFactory = $cityFactory;
         $this->collectionFactory = $collectionFactory;
@@ -78,6 +80,7 @@ class CityRepository implements CityRepositoryInterface
     {
         /** @var ResourceModel\City\City\Collection $collection */
         $collection = $this->collectionFactory->create();
+        $this->availability->apply($collection);
         return $collection->addFieldToFilter(
             [CityInterface::DESCRIPTION_UA, CityInterface::DESCRIPTION_RU],
             [
@@ -94,6 +97,7 @@ class CityRepository implements CityRepositoryInterface
     {
         /** @var ResourceModel\City\City\Collection $collection */
         $collection = $this->collectionFactory->create();
+        $this->availability->apply($collection);
         return $collection->addFieldToFilter(
             [CityInterface::DESCRIPTION_UA, CityInterface::DESCRIPTION_RU],
             [
@@ -140,6 +144,7 @@ class CityRepository implements CityRepositoryInterface
     public function getAllCity(string $locale)
     {
         $collection = $this->collectionFactory->create();
+        $this->availability->apply($collection);
         $cityArr = [];
         $cityOptionArr = [];
         if ($locale === 'uk_UA') {
@@ -168,6 +173,7 @@ class CityRepository implements CityRepositoryInterface
     public function getAllCityReturnCityId(string $locale)
     {
         $collection = $this->collectionFactory->create();
+        $this->availability->apply($collection);
         $cityArr = [];
         $cityOptionArr = [];
         if ($locale === 'uk_UA') {

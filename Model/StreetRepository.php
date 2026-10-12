@@ -60,7 +60,9 @@ class StreetRepository implements StreetRepositoryInterface
      * @param StreetSearchResultsInterfaceFactory $searchResultsFactory
      * @param CollectionProcessorInterface $collectionProcessor
      * @param SearchCriteriaBuilderFactory $searchCriteriaBuilderFactory
-     * @param CityResource $resourceModelCity
+     * @param CityResource $resourceModelCity,
+        private Availability $availability,
+        private \Perspective\NovaposhtaCatalog\Model\Update\DirectorySnapshot $snapshot
      */
     public function __construct(
         ResourceStreet $resource,
@@ -69,7 +71,9 @@ class StreetRepository implements StreetRepositoryInterface
         StreetSearchResultsInterfaceFactory $searchResultsFactory,
         CollectionProcessorInterface $collectionProcessor,
         SearchCriteriaBuilderFactory $searchCriteriaBuilderFactory,
-        CityResource $resourceModelCity
+        CityResource $resourceModelCity,
+        private Availability $availability,
+        private \Perspective\NovaposhtaCatalog\Model\Update\DirectorySnapshot $snapshot
     ) {
         $this->resource = $resource;
         $this->streetFactory = $streetFactory;
@@ -134,7 +138,9 @@ class StreetRepository implements StreetRepositoryInterface
         $searchCriteriaBuilder = $this->searchCriteriaBuilderFactory->create();
         $searchCriteriaBuilder->addFilter(StreetInterface::CITY_REF, $cityRef);
         $searchCriteria = $searchCriteriaBuilder->create();
-        return $this->getList($searchCriteria);
+        $collection = $this->availability->apply($this->processCollectionWithCriteria($searchCriteria));
+        return $this->searchResultsFactory->create()->setSearchCriteria($searchCriteria)
+            ->setItems($collection->getItems())->setTotalCount($collection->getSize());
     }
 
     /**
@@ -145,11 +151,12 @@ class StreetRepository implements StreetRepositoryInterface
         $searchCriteriaBuilder = $this->searchCriteriaBuilderFactory->create();
         $searchCriteriaBuilder->addFilter(StreetInterface::CITY_REF, $cityRef);
         $searchCriteria = $searchCriteriaBuilder->create();
-        return $this->processCollectionWithCriteria($searchCriteria);
+        return $this->availability->apply($this->processCollectionWithCriteria($searchCriteria));
     }
     public function getCollectionByCityRefAlternative(string $cityRef)
     {
         $collection = $this->streetCollectionFactory->create();
+        $this->availability->apply($collection);
         $collection->addCityRefToFilter($cityRef);
         return $collection;
     }
@@ -203,8 +210,8 @@ class StreetRepository implements StreetRepositoryInterface
      */
     public function getFormattedByCityName(string $cityName)
     {
-        $cityRef = $this->resourceModelCity->getCityByName($cityName)->getFirstItem()->getRef();
-        return $this->getFormattedByCityRef($cityRef);
+        $city = $this->resourceModelCity->getCityCollectionByName($cityName)->getFirstItem();
+        return $city->getId() ? $this->getFormattedByCityRef($city->getRef()) : [];
     }
 
     /**
@@ -214,7 +221,11 @@ class StreetRepository implements StreetRepositoryInterface
         StreetInterface $street
     ) {
         try {
-            $this->resource->delete($street);
+            $this->snapshot->withLock('np_streets_' . sha1($street->getCityRef()), function () use ($street) {
+                $this->resource->getConnection()->update(
+                    $this->resource->getMainTable(), ['is_active' => 0], ['id = ?' => $street->getId()]
+                );
+            });
         } catch (\Exception $exception) {
             throw new CouldNotDeleteException(__(
                 'Could not delete the Street: %1',

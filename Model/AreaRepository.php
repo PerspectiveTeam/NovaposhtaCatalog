@@ -46,7 +46,8 @@ class AreaRepository implements AreaRepositoryInterface
         AreaResourceModel $areaResourceModel,
         CollectionFactory $collectionFactory,
         AreaSearchResultsInterfaceFactory $searchResultsFactory,
-        CollectionProcessorInterface $collectionProcessor
+        CollectionProcessorInterface $collectionProcessor,
+        private Availability $availability
     ) {
         $this->areaFactory = $areaFactory;
         $this->areaResourceModel = $areaResourceModel;
@@ -79,6 +80,7 @@ class AreaRepository implements AreaRepositoryInterface
     public function getAreaCollectionByName(string $areaName)
     {
         $collection = $this->collectionFactory->create();
+        $this->availability->apply($collection);
         return $collection->addFieldToFilter(
             [AreaInterface::DESCRIPTION_UA, AreaInterface::DESCRIPTION_RU],
             [
