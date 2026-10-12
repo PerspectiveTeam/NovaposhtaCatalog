@@ -65,6 +65,10 @@ class Config extends AbstractHelper
     {
         $raw = $this->getConfigValue(self::XML_PATH_DIRECTORY_MAP, $storeId);
 
+        if (is_string($raw)) {
+            $raw = json_decode($raw, true);
+        }
+
         if (!is_array($raw)) {
             return [];
         }
