@@ -14,6 +14,7 @@ use Perspective\NovaposhtaCatalog\Helper\CronSyncDateLastUpdate;
 use Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\CollectionFactory as CityCollectionFactory;
 use Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street\CollectionFactory as StreetCollectionFactory;
 use Perspective\NovaposhtaCatalog\Service\HTTP\Post;
+use Psr\Log\LoggerInterface;
 
 /**
  * Import Streets from NovaPoshta API
@@ -69,7 +70,7 @@ class Street implements UpdateEntityInterface
     private $streetResource;
 
     /**
-     * @var \Closure|mixed|\Psr\Log\LoggerInterface|null
+     * @var LoggerInterface
      */
     private $logger;
 
@@ -98,6 +99,8 @@ class Street implements UpdateEntityInterface
      */
     private Config $configHelper;
 
+    private DirectorySnapshot $snapshot;
+
     /**
      * @param \Perspective\NovaposhtaCatalog\Helper\Config $configHelper
      * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\CollectionFactory $cityCollectionFactory
@@ -119,6 +122,8 @@ class Street implements UpdateEntityInterface
         CronSyncDateLastUpdate $cronSyncDateLastUpdate,
         SerializerInterface $serializerToArray,
         Post $postService,
+        DirectorySnapshot $snapshot,
+        LoggerInterface $logger,
     ) {
 
         $this->cityCollectionFactory = $cityCollectionFactory;
@@ -130,6 +135,8 @@ class Street implements UpdateEntityInterface
         $this->serializerToArray = $serializerToArray;
         $this->postService = $postService;
         $this->configHelper = $configHelper;
+        $this->snapshot = $snapshot;
+        $this->logger = $logger;
     }
 
     /**
@@ -143,29 +150,27 @@ class Street implements UpdateEntityInterface
         $error = true;
         $data = [];
         if ($this->configHelper->isEnabled()) {
-            foreach ($this->getCityCollection() as $city) {
-            if ($city->getRef() === null) {
-                continue;
-            }
-            $this->log('Importing for city ' . $city->getRef());
-
-                $streetsFromNP = $this->getDataFromEndpoint($city->getRef());
-                $preparedStreetsDataFromNP = $this->prepareDataFromNP($streetsFromNP, $city->getRef());
-                if (empty($streetsFromNP)) {
-                    $this->log(__('Street Request error. City has no Streets OR Check API key.'));
-                    continue;
+            try {
+                $synced = false;
+                foreach ($this->getCityCollection() as $city) {
+                    if ($city->getRef() === null) {
+                        continue;
+                    }
+                    $this->log('Importing for city ' . $city->getRef());
+                    $streetsFromNP = $this->getDataFromEndpoint($city->getRef());
+                    $models = $this->prepareDataFromNP($streetsFromNP, $city->getRef());
+                    $this->setDataToDB($models, null, $city->getRef());
+                    $synced = true;
                 }
-
-                $streetsFromDB = $this->getStreetsFromDb($city->getRef());
-
-                $this->setDataToDB($preparedStreetsDataFromNP, $streetsFromDB, $city->getRef());
-            $error = false;
-            $message = "Successfully synced";
-        }
-            $this->log(__($message));
-        }
-        if ($error === false) {
-            $this->cronSyncDateLastUpdate->updateSyncDate($this->cronSyncDateLastUpdate::XML_PATH_LAST_SYNC_STREETS);
+                if ($synced) {
+                    $this->cronSyncDateLastUpdate->updateSyncDate(CronSyncDateLastUpdate::XML_PATH_LAST_SYNC_STREETS);
+                    $error = false;
+                    $message = 'Successfully synced';
+                }
+            } catch (\Throwable $e) {
+                $message = $e->getMessage();
+                $this->logger->error('Nova Poshta streets sync failed.');
+            }
         }
         return [
             'message' => $message,
@@ -193,22 +198,32 @@ class Street implements UpdateEntityInterface
      */
     public function setDataToDB(...$params)
     {
-        $streetsFromNP = $params[0];
-        $streetsFromDB = $params[1];
-        $cityRef = $params[2];
-
-        foreach ($streetsFromNP as $streetFromNP) {
-            /** @var StreetInterface|null $street */
-            $street = $streetsFromDB->getItemByColumnValue(StreetInterface::REF, $streetFromNP->getRef());
-            if ($street === null) {
-                $this->saveStreet($streetFromNP);
-            } else {
-                if ($this->isStreetChanged($street, $streetFromNP)) {
-                    $streetId = $street->getStreetId();
-                    $this->saveStreet($streetFromNP, $streetId);
-                }
-            }
+        $data = $params[0] ?? null;
+        $cityRef = $params[2] ?? null;
+        if (!is_iterable($data) || !is_string($cityRef) || trim($cityRef) === '') {
+            throw new LocalizedException(__('Invalid streets sync scope.'));
         }
+        $models = [];
+        foreach ($data as $street) {
+            if (!$street instanceof StreetInterface || $street->getCityRef() !== $cityRef) {
+                throw new LocalizedException(__('Nova Poshta returned a street outside the requested city.'));
+            }
+            $this->validateStreetFields((object)[
+                'Ref' => $street->getRef(), 'Description' => $street->getDescription(),
+                'StreetsTypeRef' => $street->getStreetTypeRef(), 'StreetsType' => $street->getStreetType(),
+            ]);
+            if (isset($models[$street->getRef()])) {
+                throw new LocalizedException(__('Nova Poshta returned duplicate street references.'));
+            }
+            $models[$street->getRef()] = $street;
+        }
+        $this->snapshot->save(
+            $models,
+            $this->streetResource,
+            fn () => $this->getStreetsFromDb($cityRef),
+            'np_streets_' . sha1($cityRef),
+            false
+        );
     }
 
     /**
@@ -220,34 +235,34 @@ class Street implements UpdateEntityInterface
     {
         $cityRef = $params[0];
         $this->postService->setTimeout(60);
-        $cityStreetsArray = [];
-        $cityStreetsArray['success'] = false;
-        $paramsForRequest = $this->prepareRequestParams($cityRef);
-        $postServicePromise = $this->getServicePromise($paramsForRequest);
-        self::$count = 0;
-        $resultFormApi = $this->serializerToArray->unserialize(
-            $postServicePromise->getBody()
-        );
-        if (isset($resultFormApi['success']) && $resultFormApi['success'] === true) {
-            $cityStreetsArray = $resultFormApi['data'];
-            if ($resultFormApi['info']['totalCount'] > self::PAGE_SIZE) {
-                $pages = ceil($resultFormApi['info']['totalCount'] / self::PAGE_SIZE);
-                for ($i = 2; $i <= $pages; $i++) {
-                    $paramsForRequest = $this->prepareRequestParams($cityRef, $i);
-                    $postServicePromise = $this->getServicePromise($paramsForRequest);
-                    self::$count = 0;
-                    $resultFormApi = $this->serializerToArray->unserialize(
-                        $postServicePromise->getBody()
-                    );
-                    if (isset($resultFormApi['success']) && $resultFormApi['success'] === true) {
-                        $cityStreetsArray = array_merge($cityStreetsArray, $resultFormApi['data']);
-                    }
-                }
+        $streets = [];
+        $totalCount = null;
+        $pages = 1;
+        for ($page = 1; $page <= $pages; ++$page) {
+            $response = $this->getServicePromise($this->prepareRequestParams($cityRef, $page));
+            self::$count = 0;
+            $result = $this->serializerToArray->unserialize($response->getBody());
+            $pageTotal = filter_var($result['info']['totalCount'] ?? null, FILTER_VALIDATE_INT,
+                ['options' => ['min_range' => 0]]);
+            $isSuccessful = is_array($result) && ($result['success'] ?? null) === true;
+            $hasValidData = is_array($result['data'] ?? null) && array_is_list($result['data']);
+            if (!$isSuccessful || !$hasValidData || $pageTotal === false) {
+                throw new LocalizedException(__('Nova Poshta returned an invalid streets page, sync aborted.'));
             }
-            $cityStreetsArray['success'] = true;
+            if ($totalCount !== null && $pageTotal !== $totalCount) {
+                throw new LocalizedException(__('Nova Poshta streets count changed during sync, retry the import.'));
+            }
+            $totalCount = $pageTotal;
+            $pages = max(1, (int)ceil($totalCount / self::PAGE_SIZE));
+            $expectedCount = min(self::PAGE_SIZE, max(0, $totalCount - ($page - 1) * self::PAGE_SIZE));
+            if (count($result['data']) !== $expectedCount) {
+                throw new LocalizedException(__('Nova Poshta returned an incomplete streets page, sync aborted.'));
+            }
+            $streets = array_merge($streets, $result['data']);
         }
-
-        return $this->serializer->unserialize($this->serializer->serialize($cityStreetsArray));
+        $response = $this->serializer->unserialize($this->serializer->serialize(array_merge($streets, ['success' => true])));
+        $this->prepareDataFromNP($response, $cityRef);
+        return $response;
     }
 
     /**
@@ -280,46 +295,12 @@ class Street implements UpdateEntityInterface
     }
 
     /**
-     * @param StreetInterface $street
-     * @param null $streetId
-     */
-    private function saveStreet(StreetInterface $street, $streetId = null): void
-    {
-        if ($streetId !== null) {
-            $street->setStreetId((int)$streetId);
-        }
-        try {
-            $this->streetResource->save($street); // @phpstan-ignore-line
-        } catch (\Exception $exception) {
-            $this->log($exception->getMessage());
-        }
-    }
-
-    /**
-     * @param StreetInterface $street
-     * @param StreetInterface $streetFromNP
-     * @return bool
-     */
-    private function isStreetChanged(StreetInterface $street, StreetInterface $streetFromNP): bool
-    {
-        return ($street->getRef() !== $streetFromNP->getRef()) ||
-            ($street->getDescription() !== $streetFromNP->getDescription()) ||
-            ($street->getStreetTypeRef() !== $streetFromNP->getStreetTypeRef()) ||
-            ($street->getStreetType() !== $streetFromNP->getStreetType());
-    }
-
-    /**
      * @param string|\Magento\Framework\Phrase $message
      * @param array $context
      */
     private function log($message, $context = []): void
     {
-        if (is_callable($this->logger)) {
-            ($this->logger)($message);
-        } else {
-            $this->logger = \Magento\Framework\App\ObjectManager::getInstance()->get(\Psr\Log\LoggerInterface::class);
-            $this->logger->debug($message, $context);
-        }
+        $this->logger->debug((string)$message, $context);
     }
 
     /**
@@ -329,28 +310,32 @@ class Street implements UpdateEntityInterface
      */
     private function prepareDataFromNP($dataFromEndpoint, $cityRef)
     {
-        $streetsData = [];
-        if (is_object($dataFromEndpoint) && property_exists($dataFromEndpoint, 'success')) {
-            foreach ($dataFromEndpoint as $datum) {
-                if (!is_object($datum)) {
-                    continue;
-                }
-                /** @var StreetInterface $street */
-                $street = $this->streetFactory->create();
-                $street->setRef($datum->{self::API_FIELD_REF})
-                    ->setDescription($datum->{self::API_FIELD_DESCRIPTION})
-                    ->setStreetTypeRef($datum->{self::API_FIELD_STREETS_TYPE_REF})
-                    ->setStreetType($datum->{self::API_FIELD_STREETS_TYPE})
-                    ->setCityRef($cityRef);
-                $streetsData[] = $street;
+        if (!is_object($dataFromEndpoint) || ($dataFromEndpoint->success ?? null) !== true) {
+            throw new LocalizedException(__('Nova Poshta streets request failed, sync aborted.'));
+        }
+        $rows = (array)$dataFromEndpoint;
+        unset($rows['success']);
+        return $this->snapshot->prepare($rows, function ($datum) use ($cityRef) {
+            $this->validateStreetFields($datum);
+            return $this->streetFactory->create()
+                ->setRef($datum->{self::API_FIELD_REF})
+                ->setDescription($datum->{self::API_FIELD_DESCRIPTION})
+                ->setStreetTypeRef($datum->{self::API_FIELD_STREETS_TYPE_REF})
+                ->setStreetType($datum->{self::API_FIELD_STREETS_TYPE})
+                ->setCityRef($cityRef);
+        }, true);
+    }
+
+    private function validateStreetFields(object $row): void
+    {
+        foreach (['Ref', 'Description', 'StreetsTypeRef', 'StreetsType'] as $field) {
+            $value = $row->$field ?? null;
+            if (!is_string($value) || trim($value) === '' || mb_strlen($value) > 255) {
+                throw new LocalizedException(__('Nova Poshta returned an invalid street record, sync aborted.'));
             }
-            return $streetsData;
-        } else {
-            return [
-                $this->streetFactory->create()
-            ];
         }
     }
+
     /**
      * @param array $paramsForRequest
      * @return \Magento\Framework\HTTP\AsyncClient\Response

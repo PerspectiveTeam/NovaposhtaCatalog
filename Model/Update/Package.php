@@ -3,7 +3,6 @@
 
 namespace Perspective\NovaposhtaCatalog\Model\Update;
 
-use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Serialize\SerializerInterface;
 use Perspective\NovaposhtaCatalog\Api\Data\UpdateEntityInterface;
 use Perspective\NovaposhtaCatalog\Helper\Config;
@@ -60,6 +59,8 @@ class Package implements UpdateEntityInterface
      */
     private Post $postService;
 
+    private DirectorySnapshot $snapshot;
+
     /**
      * Package constructor.
      *
@@ -78,7 +79,8 @@ class Package implements UpdateEntityInterface
         PackageResourceModel $packageResourceModel,
         PackageFactory $packageFactory,
         SerializerInterface $serializer,
-        Post $postService
+        Post $postService,
+        DirectorySnapshot $snapshot
     ) {
         $this->configHelper = $configHelper;
         $this->cronSyncDateLastUpdate = $cronSyncDateLastUpdate;
@@ -87,6 +89,7 @@ class Package implements UpdateEntityInterface
         $this->packageResourceModel = $packageResourceModel;
         $this->serializer = $serializer;
         $this->postService = $postService;
+        $this->snapshot = $snapshot;
     }
 
     /**
@@ -98,24 +101,13 @@ class Package implements UpdateEntityInterface
         $error = true;
         $data = [];
         if ($this->configHelper->isEnabled()) {
-            /** @var \stdClass $packageTypeListJsonDecoded */
-            $packageTypeListJsonDecoded = $this->getDataFromEndpoint();
-            if (property_exists($packageTypeListJsonDecoded, 'success')
-                && $packageTypeListJsonDecoded->success === true) {
-                try {
-                    $error = false;
-                    $message = 'In Progress..';
-                    $this->setDataToDB($packageTypeListJsonDecoded->data);
-                } catch (AlreadyExistsException $e) {
-                    $error = true;
-                    $message = "Key already exist\n" . $e->getMessage();
-                }
-                if (!$error) {
-                    $error = false;
-                    $message = "Successfully synced";
-                    $this->cronSyncDateLastUpdate
-                        ->updateSyncDate($this->cronSyncDateLastUpdate::XML_PATH_LAST_SYNC_PACKAGE_TYPES);
-                }
+            try {
+                $this->setDataToDB($this->snapshot->getResponseData($this->getDataFromEndpoint()));
+                $this->cronSyncDateLastUpdate->updateSyncDate(CronSyncDateLastUpdate::XML_PATH_LAST_SYNC_PACKAGE_TYPES);
+                $error = false;
+                $message = 'Successfully synced';
+            } catch (\Throwable $e) {
+                $message = $e->getMessage();
             }
         }
         return [
@@ -155,32 +147,13 @@ class Package implements UpdateEntityInterface
      */
     public function setDataToDB(...$params)
     {
-        $data = $params[0];
-        $entireTableColl = $this->packageTypesResourceModelCollectionFactory->create();
-        $entireIds = $entireTableColl->getAllIds();
-        foreach ($data as $idx => $datum) {
-            $filledModel = $this->prepareData($datum);
-            /**@var $singleItem \Perspective\NovaposhtaCatalog\Model\Package\Package */
-            $singleItem = $this->packageFactory->create();
-            $this->packageResourceModel->load($singleItem, $filledModel->getRef(), $filledModel::REF);
-            if ($singleItem->getRef()) {
-                $filledModel->setId($singleItem->getId());
-                $this->packageResourceModel
-                    ->save($filledModel);
-            } else {
-                $this->packageResourceModel
-                    ->save($filledModel);
-            }
-
-            unset($entireIds[array_search($singleItem->getId(), $entireIds)]);
-        }
-        if (count($entireIds) > 0) {
-            foreach ($entireIds as $remIdx => $remItem) {
-                $cleanUpModel = $this->packageFactory->create();
-                $this->packageResourceModel->load($cleanUpModel, $remItem, 'id');
-                $this->packageResourceModel->delete($cleanUpModel);
-            }
-        }
+        $models = $this->snapshot->prepare($params[0] ?? null, fn ($row) => $this->prepareData($row));
+        $this->snapshot->save(
+            $models,
+            $this->packageResourceModel,
+            fn () => $this->packageTypesResourceModelCollectionFactory->create(),
+            'perspective_novaposhta_packages_sync'
+        );
     }
 
     /**
