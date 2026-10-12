@@ -2,8 +2,6 @@
 
 namespace Perspective\NovaposhtaCatalog\Service\HTTP;
 
-use Exception;
-use GuzzleHttp\Exception\TransferException;
 use Magento\Framework\HTTP\AsyncClientInterface;
 use Magento\Framework\Serialize\SerializerInterface;
 use Perspective\NovaposhtaCatalog\Helper\Config;
@@ -32,13 +30,15 @@ class Post
      * @param \Psr\Log\LoggerInterface $logger
      * @param \Magento\Framework\Serialize\SerializerInterface $serializer
      * @param \Perspective\NovaposhtaCatalog\Helper\Config $generalHelper
-     * @param \Magento\Framework\HTTP\AsyncClientInterface $asyncClient
+     * @param \Magento\Framework\HTTP\AsyncClientInterface $asyncClient,
+        private RateLimitRetry $rateLimitRetry
      */
     public function __construct(
         LoggerInterface $logger,
         SerializerInterface $serializer,
         Config $generalHelper,
-        AsyncClientInterface $asyncClient
+        AsyncClientInterface $asyncClient,
+        private RateLimitRetry $rateLimitRetry
     ) {
         $this->logger = $logger;
         $this->serializer = $serializer;
@@ -52,52 +52,21 @@ class Post
         $apiEndpoint = sprintf('https://api.novaposhta.ua/v2.0/json/%s/%s', $modelName, $calledMethod);
         $apiKey = $this->generalHelper->getApiKey();
         $arrayForApi = array_merge($arrayForApi, ['apiKey' => $apiKey]);
-        try {
-            $result = $this->asyncClient->request(
-                new Request(
-                    $apiEndpoint,
-                    $methodType,
-                    [
-                        'Content-Type' => 'application/json',
+        return $this->asyncClient->request(
+            new Request(
+                $apiEndpoint,
+                $methodType,
+                ['Content-Type' => 'application/json'],
+                $this->serializer->serialize($arrayForApi),
+                ['timeout' => $this->getTimeout()]
+            )
+        );
+    }
 
-                    ],
-                    $this->serializer->serialize($arrayForApi),
-                    ['timeout' => $this->getTimeout()]
-                )
-            );
-        } catch (TransferException $e) {
-            $this->log([
-                'endpoint' => $apiEndpoint,
-                'request' => $arrayForApi,
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-        }
-        try {
-//            $bodyResponse = $result->get()->getBody();
-//            $headerResponse = $result->get()->getHeaders();
-//            $statusResponse = $result->get()->getStatusCode();
-//            $this->log([
-//                'endpoint' => $apiEndpoint,
-//                'request' => $arrayForApi,
-//                'responseBody' => $bodyResponse ?? null,
-//                'headerResponse' => $headerResponse ?? null,
-//                'statusResponse' => $statusResponse ?? null,
-//            ]);
-//            $this->log([$bodyResponse] ?? ['error' => 'empty response']);
-            return $result;
-        } catch (Exception $e) {
-            $this->log([
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'endpoint' => $apiEndpoint,
-                'request' => $arrayForApi,
-                'responseBody' => $bodyResponse ?? null,
-                'headerResponse' => $headerResponse ?? null,
-                'statusResponse' => $statusResponse ?? null,
-            ]);
-            $this->log([$bodyResponse] ?? ['error' => 'empty response']);
-        }
+    /** Synchronous, rate-limit-aware reads used by directory synchronization. */
+    public function getResponse(string $modelName, string $calledMethod, array $params): \Magento\Framework\HTTP\AsyncClient\Response
+    {
+        return $this->rateLimitRetry->execute(fn () => $this->execute($modelName, $calledMethod, $params)->get());
     }
 
     /**
