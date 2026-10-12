@@ -3,6 +3,7 @@
 namespace Perspective\NovaposhtaCatalog\Model\Update;
 
 use Magento\Framework\Exception\LocalizedException;
+use Magento\Framework\Lock\LockManagerInterface;
 use Magento\Framework\Serialize\SerializerInterface;
 use Perspective\NovaposhtaCatalog\Api\Data\UpdateEntityInterface;
 use Perspective\NovaposhtaCatalog\Helper\Config;
@@ -18,6 +19,8 @@ use Psr\Log\LoggerInterface;
  */
 class Area implements UpdateEntityInterface
 {
+    private const LOCK_NAME = 'perspective_novaposhta_areas_sync';
+
     /**
      * @var Config
      */
@@ -58,6 +61,8 @@ class Area implements UpdateEntityInterface
      */
     private LoggerInterface $logger;
 
+    private LockManagerInterface $lockManager;
+
     public function __construct(
         Config $configHelper,
         CronSyncDateLastUpdate $cronSyncDateLastUpdate,
@@ -66,7 +71,8 @@ class Area implements UpdateEntityInterface
         AreaResource $areaResourceModel,
         CollectionFactory $areaResourceModelCollectionFactory,
         Post $postService,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        LockManagerInterface $lockManager
     ) {
         $this->configHelper = $configHelper;
         $this->cronSyncDateLastUpdate = $cronSyncDateLastUpdate;
@@ -76,6 +82,7 @@ class Area implements UpdateEntityInterface
         $this->areaResourceModelCollectionFactory = $areaResourceModelCollectionFactory;
         $this->postService = $postService;
         $this->logger = $logger;
+        $this->lockManager = $lockManager;
     }
 
     /**
@@ -139,50 +146,89 @@ class Area implements UpdateEntityInterface
      */
     public function setDataToDB(...$params)
     {
-        $data = $params[0];
+        $data = $params[0] ?? null;
 
         $models = [];
         foreach (is_iterable($data) ? $data : [] as $datum) {
-            if (is_object($datum) && !empty($datum->Ref)) {
-                $models[] = $this->prepareData($datum);
+            if (!$this->isValidArea($datum)) {
+                throw new LocalizedException(__('Nova Poshta returned an invalid area, sync aborted.'));
             }
+
+            if (isset($models[$datum->Ref])) {
+                throw new LocalizedException(__('Nova Poshta returned duplicate area references, sync aborted.'));
+            }
+
+            $models[$datum->Ref] = $this->prepareData($datum);
         }
-        // An empty snapshot would delete every stored area below, so refuse to reconcile against it
         if (empty($models)) {
             throw new LocalizedException(__('Nova Poshta returned no areas, sync aborted.'));
         }
 
+        if (!$this->lockManager->lock(self::LOCK_NAME, 0)) {
+            throw new LocalizedException(__('Nova Poshta areas sync is already in progress.'));
+        }
+
+        try {
+            $this->saveAreas($models);
+        } finally {
+            $this->lockManager->unlock(self::LOCK_NAME);
+        }
+    }
+
+    private function isValidArea(mixed $datum): bool
+    {
+        if (!is_object($datum)) {
+            return false;
+        }
+
+        $hasValidRef = $this->isNonEmptyString($datum->Ref ?? null)
+            && strlen($datum->Ref) <= 255;
+        $hasValidDescription = $this->isNonEmptyString($datum->Description ?? null);
+        $hasValidCenter = !isset($datum->AreasCenter)
+            || (is_string($datum->AreasCenter) && strlen($datum->AreasCenter) <= 255);
+        $hasValidRussianDescription = !isset($datum->DescriptionRu)
+            || is_string($datum->DescriptionRu);
+
+        return $hasValidRef
+            && $hasValidDescription
+            && $hasValidCenter
+            && $hasValidRussianDescription;
+    }
+
+    private function isNonEmptyString(mixed $value): bool
+    {
+        return is_string($value) && trim($value) !== '';
+    }
+
+    /**
+     * Update known areas and insert new ones; missing references never authorize deletion.
+     *
+     * @param \Perspective\NovaposhtaCatalog\Model\Area\Area[] $models
+     * @return void
+     */
+    private function saveAreas(array $models): void
+    {
         $collection = $this->areaResourceModelCollectionFactory->create();
         $existingByRef = [];
         foreach ($collection as $item) {
             $existingByRef[$item->getRef()] = $item->getId();
         }
 
+        if (array_diff_key($existingByRef, $models)) {
+            throw new LocalizedException(__('Nova Poshta returned an incomplete areas list, sync aborted.'));
+        }
+
         $connection = $this->areaResourceModel->getConnection();
         $connection->beginTransaction();
         try {
-            $touchedIds = [];
             foreach ($models as $model) {
                 $ref = $model->getRef();
 
                 if (isset($existingByRef[$ref])) {
                     $model->setId($existingByRef[$ref]);
-                    $touchedIds[] = $existingByRef[$ref];
                 }
 
                 $this->areaResourceModel->save($model);
-
-                if (!isset($existingByRef[$ref])) {
-                    $touchedIds[] = (int)$model->getId();
-                }
-            }
-
-            $idsToDelete = array_diff(array_values($existingByRef), $touchedIds);
-            if (!empty($idsToDelete)) {
-                $connection->delete(
-                    $this->areaResourceModel->getMainTable(),
-                    ['id IN (?)' => $idsToDelete]
-                );
             }
             $connection->commit();
         } catch (\Throwable $e) {
