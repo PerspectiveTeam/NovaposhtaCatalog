@@ -27,7 +27,7 @@
                 <field id="apikey" translate="label" type="text" sortOrder="3" showInDefault="1" showInWebsite="0"
                        showInStore="0">
                     <label>API key</label>
-                    <comment>https://my.novaposhta.ua/settings/index#apikeys</comment>
+                    <comment>https://new.novaposhta.ua/dashboard/settings/developers</comment>
                     <depends>
                         <field id="active">1</field>
                     </depends>

@@ -65,7 +65,7 @@ Nova Poshta Catalog завантажує довідники Нової пошт�
 
 1. Відкрийте **Stores → Configuration → Perspective Studio → Nova Poshta Catalog**.
 2. Виберіть **Default Config**, у **General settings** увімкніть модуль і введіть
-   API-ключ із [кабінету Нової пошти](https://my.novaposhta.ua/settings/index#apikeys).
+   API-ключ із [кабінету Нової пошти](https://new.novaposhta.ua/dashboard/settings/developers).
 3. У **Schedule** увімкніть **Enable Scheduled Synchronization**, виберіть час
    і частоту, натисніть **Save Config**.
 4. Дочекайтеся синхронізації та відкрийте довідники через **View Lists**.

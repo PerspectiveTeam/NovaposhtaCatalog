@@ -64,7 +64,7 @@ Once your developer has installed the module:
 
 1. Open **Stores → Configuration → Perspective Studio → Nova Poshta Catalog**.
 2. Select **Default Config**, enable the module in **General settings**, and enter
-   the API key from your [Nova Poshta account](https://my.novaposhta.ua/settings/index#apikeys).
+   the API key from your [Nova Poshta account](https://new.novaposhta.ua/dashboard/settings/developers).
 3. Under **Schedule**, set **Enable Scheduled Synchronization** to **Yes**,
    choose a time and frequency, and click **Save Config**.
 4. Wait for synchronization to finish, then open the directories through **View Lists**.
