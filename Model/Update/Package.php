@@ -80,7 +80,8 @@ class Package implements UpdateEntityInterface
         PackageFactory $packageFactory,
         SerializerInterface $serializer,
         Post $postService,
-        DirectorySnapshot $snapshot
+        DirectorySnapshot $snapshot,
+        private \Psr\Log\LoggerInterface $logger
     ) {
         $this->configHelper = $configHelper;
         $this->cronSyncDateLastUpdate = $cronSyncDateLastUpdate;
@@ -102,12 +103,15 @@ class Package implements UpdateEntityInterface
         $data = [];
         if ($this->configHelper->isEnabled()) {
             try {
-                $this->setDataToDB($this->snapshot->getResponseData($this->getDataFromEndpoint()));
-                $this->cronSyncDateLastUpdate->updateSyncDate(CronSyncDateLastUpdate::XML_PATH_LAST_SYNC_PACKAGE_TYPES);
+                $this->snapshot->withLock('perspective_novaposhta_packages_sync', function () {
+                    $this->setDataToDB($this->snapshot->getResponseData($this->getDataFromEndpoint()));
+                    $this->cronSyncDateLastUpdate->updateSyncDate(CronSyncDateLastUpdate::XML_PATH_LAST_SYNC_PACKAGE_TYPES);
+                });
                 $error = false;
                 $message = 'Successfully synced';
             } catch (\Throwable $e) {
                 $message = $e->getMessage();
+                $this->logger->error('Nova Poshta packages sync failed: ' . $message);
             }
         }
         return [
@@ -133,8 +137,7 @@ class Package implements UpdateEntityInterface
         ];
         $resultFormApi = $this->serializer->unserialize(
             $this->postService
-                ->execute('Common', 'getPackList', $paramsForRequest)
-                ->get()
+                ->getResponse('Common', 'getPackList', $paramsForRequest)
                 ->getBody()
         );
         return $resultFormApi;

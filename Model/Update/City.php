@@ -104,13 +104,15 @@ class City implements UpdateEntityInterface
         $data = [];
         if ($this->configHelper->isEnabled()) {
             try {
-                $this->setDataToDB($this->snapshot->getResponseData($this->getDataFromEndpoint()));
-                $this->cronSyncDateLastUpdate->updateSyncDate(CronSyncDateLastUpdate::XML_PATH_LAST_SYNC_CITY);
+                $this->snapshot->withLock('perspective_novaposhta_cities_sync', function () {
+                    $this->setDataToDB($this->snapshot->getResponseData($this->getDataFromEndpoint()));
+                    $this->cronSyncDateLastUpdate->updateSyncDate(CronSyncDateLastUpdate::XML_PATH_LAST_SYNC_CITY);
+                });
                 $error = false;
                 $message = 'Successfully synced';
             } catch (\Throwable $e) {
                 $message = $e->getMessage();
-                $this->logger->error('Nova Poshta cities sync failed.');
+                $this->logger->error('Nova Poshta cities sync failed: ' . $message);
             }
         }
         return [
@@ -133,8 +135,7 @@ class City implements UpdateEntityInterface
         $this->postService->setTimeout(60);
         $resultFormApi = $this->serializer->unserialize(
             $this->postService
-                ->execute('Address', 'getCities', $paramsForRequest)
-                ->get()
+                ->getResponse('Address', 'getCities', $paramsForRequest)
                 ->getBody()
         );
         return $resultFormApi;

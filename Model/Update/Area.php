@@ -3,7 +3,6 @@
 namespace Perspective\NovaposhtaCatalog\Model\Update;
 
 use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\Lock\LockManagerInterface;
 use Magento\Framework\Serialize\SerializerInterface;
 use Perspective\NovaposhtaCatalog\Api\Data\UpdateEntityInterface;
 use Perspective\NovaposhtaCatalog\Helper\Config;
@@ -61,7 +60,7 @@ class Area implements UpdateEntityInterface
      */
     private LoggerInterface $logger;
 
-    private LockManagerInterface $lockManager;
+    private DirectorySnapshot $snapshot;
 
     public function __construct(
         Config $configHelper,
@@ -72,7 +71,7 @@ class Area implements UpdateEntityInterface
         CollectionFactory $areaResourceModelCollectionFactory,
         Post $postService,
         LoggerInterface $logger,
-        LockManagerInterface $lockManager
+        DirectorySnapshot $snapshot
     ) {
         $this->configHelper = $configHelper;
         $this->cronSyncDateLastUpdate = $cronSyncDateLastUpdate;
@@ -82,7 +81,7 @@ class Area implements UpdateEntityInterface
         $this->areaResourceModelCollectionFactory = $areaResourceModelCollectionFactory;
         $this->postService = $postService;
         $this->logger = $logger;
-        $this->lockManager = $lockManager;
+        $this->snapshot = $snapshot;
     }
 
     /**
@@ -94,25 +93,17 @@ class Area implements UpdateEntityInterface
         $error = true;
         if ($this->configHelper->isEnabled()) {
             try {
-                $areasListFromApiEndpoint = $this->getDataFromEndpoint();
-                if (is_object($areasListFromApiEndpoint)
-                    && property_exists($areasListFromApiEndpoint, 'success')
-                    && $areasListFromApiEndpoint->success === true
-                ) {
-                    $message = 'In Progress..';
-                    $this->setDataToDB($areasListFromApiEndpoint->data ?? null);
-                    $error = false;
-                }
+                $this->snapshot->withLock(self::LOCK_NAME, function () {
+                    $this->setDataToDB($this->snapshot->getResponseData($this->getDataFromEndpoint()));
+                    $this->cronSyncDateLastUpdate->updateSyncDate(CronSyncDateLastUpdate::XML_PATH_LAST_SYNC_AREAS);
+                });
+                $error = false;
+                $message = 'Successfully synced';
             } catch (\Throwable $e) {
                 $message = $e->getMessage();
-                $this->logger->critical($e->getMessage(), ['exception' => $e]);
+                $this->logger->error('Nova Poshta areas sync failed: ' . $e->getMessage());
             }
 
-            if (!$error) {
-                $message = "Successfully synced";
-                $this->cronSyncDateLastUpdate
-                    ->updateSyncDate(CronSyncDateLastUpdate::XML_PATH_LAST_SYNC_AREAS);
-            }
         }
         return [
             'message' => $message,
@@ -134,8 +125,7 @@ class Area implements UpdateEntityInterface
         $this->postService->setTimeout(60);
         $resultFormApi = $this->serializer->unserialize(
             $this->postService
-                ->execute('AddressGeneral', 'getAreas', $paramsForRequest)
-                ->get()
+                ->getResponse('AddressGeneral', 'getAreas', $paramsForRequest)
                 ->getBody()
         );
         return $resultFormApi;
@@ -164,15 +154,12 @@ class Area implements UpdateEntityInterface
             throw new LocalizedException(__('Nova Poshta returned no areas, sync aborted.'));
         }
 
-        if (!$this->lockManager->lock(self::LOCK_NAME, 0)) {
-            throw new LocalizedException(__('Nova Poshta areas sync is already in progress.'));
-        }
-
-        try {
-            $this->saveAreas($models);
-        } finally {
-            $this->lockManager->unlock(self::LOCK_NAME);
-        }
+        $this->snapshot->save(
+            $models,
+            $this->areaResourceModel,
+            fn () => $this->areaResourceModelCollectionFactory->create(),
+            self::LOCK_NAME
+        );
     }
 
     private function isValidArea(mixed $datum): bool
@@ -198,43 +185,6 @@ class Area implements UpdateEntityInterface
     private function isNonEmptyString(mixed $value): bool
     {
         return is_string($value) && trim($value) !== '';
-    }
-
-    /**
-     * Update known areas and insert new ones; missing references never authorize deletion.
-     *
-     * @param \Perspective\NovaposhtaCatalog\Model\Area\Area[] $models
-     * @return void
-     */
-    private function saveAreas(array $models): void
-    {
-        $collection = $this->areaResourceModelCollectionFactory->create();
-        $existingByRef = [];
-        foreach ($collection as $item) {
-            $existingByRef[$item->getRef()] = $item->getId();
-        }
-
-        if (array_diff_key($existingByRef, $models)) {
-            throw new LocalizedException(__('Nova Poshta returned an incomplete areas list, sync aborted.'));
-        }
-
-        $connection = $this->areaResourceModel->getConnection();
-        $connection->beginTransaction();
-        try {
-            foreach ($models as $model) {
-                $ref = $model->getRef();
-
-                if (isset($existingByRef[$ref])) {
-                    $model->setId($existingByRef[$ref]);
-                }
-
-                $this->areaResourceModel->save($model);
-            }
-            $connection->commit();
-        } catch (\Throwable $e) {
-            $connection->rollBack();
-            throw $e;
-        }
     }
 
     /**

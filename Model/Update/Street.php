@@ -47,8 +47,6 @@ class Street implements UpdateEntityInterface
      */
     const PAGE_SIZE = 500;
 
-    private static int $count = 0;
-
     /**
      * @var \Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\CollectionFactory
      */
@@ -124,6 +122,7 @@ class Street implements UpdateEntityInterface
         Post $postService,
         DirectorySnapshot $snapshot,
         LoggerInterface $logger,
+        private PagedDirectory $pages,
     ) {
 
         $this->cityCollectionFactory = $cityCollectionFactory;
@@ -157,9 +156,11 @@ class Street implements UpdateEntityInterface
                         continue;
                     }
                     $this->log('Importing for city ' . $city->getRef());
-                    $streetsFromNP = $this->getDataFromEndpoint($city->getRef());
-                    $models = $this->prepareDataFromNP($streetsFromNP, $city->getRef());
-                    $this->setDataToDB($models, null, $city->getRef());
+                    $this->snapshot->withLock('np_streets_' . sha1($city->getRef()), function () use ($city) {
+                        $streetsFromNP = $this->getDataFromEndpoint($city->getRef());
+                        $models = $this->prepareDataFromNP($streetsFromNP, $city->getRef());
+                        $this->setDataToDB($models, null, $city->getRef());
+                    });
                     $synced = true;
                 }
                 if ($synced) {
@@ -169,7 +170,7 @@ class Street implements UpdateEntityInterface
                 }
             } catch (\Throwable $e) {
                 $message = $e->getMessage();
-                $this->logger->error('Nova Poshta streets sync failed.');
+                $this->logger->error('Nova Poshta streets sync failed: ' . $message);
             }
         }
         return [
@@ -189,6 +190,7 @@ class Street implements UpdateEntityInterface
             ->removeAllFieldsFromSelect()
             ->addFieldToSelect(CityInterface::REF)
             ->addFieldToSelect(CityInterface::CITYID)
+            ->addFieldToFilter('is_active', 1)
             ->addOrder(CityInterface::CITYID, 'ASC');
     }
 
@@ -217,12 +219,12 @@ class Street implements UpdateEntityInterface
             }
             $models[$street->getRef()] = $street;
         }
-        $this->snapshot->save(
+        $this->snapshot->saveScoped(
             $models,
             $this->streetResource,
-            fn () => $this->getStreetsFromDb($cityRef),
-            'np_streets_' . sha1($cityRef),
-            false
+            fn () => $this->streetCollectionFactory->create(),
+            $cityRef,
+            'np_streets_'
         );
     }
 
@@ -235,31 +237,11 @@ class Street implements UpdateEntityInterface
     {
         $cityRef = $params[0];
         $this->postService->setTimeout(60);
-        $streets = [];
-        $totalCount = null;
-        $pages = 1;
-        for ($page = 1; $page <= $pages; ++$page) {
-            $response = $this->getServicePromise($this->prepareRequestParams($cityRef, $page));
-            self::$count = 0;
-            $result = $this->serializerToArray->unserialize($response->getBody());
-            $pageTotal = filter_var($result['info']['totalCount'] ?? null, FILTER_VALIDATE_INT,
-                ['options' => ['min_range' => 0]]);
-            $isSuccessful = is_array($result) && ($result['success'] ?? null) === true;
-            $hasValidData = is_array($result['data'] ?? null) && array_is_list($result['data']);
-            if (!$isSuccessful || !$hasValidData || $pageTotal === false) {
-                throw new LocalizedException(__('Nova Poshta returned an invalid streets page, sync aborted.'));
-            }
-            if ($totalCount !== null && $pageTotal !== $totalCount) {
-                throw new LocalizedException(__('Nova Poshta streets count changed during sync, retry the import.'));
-            }
-            $totalCount = $pageTotal;
-            $pages = max(1, (int)ceil($totalCount / self::PAGE_SIZE));
-            $expectedCount = min(self::PAGE_SIZE, max(0, $totalCount - ($page - 1) * self::PAGE_SIZE));
-            if (count($result['data']) !== $expectedCount) {
-                throw new LocalizedException(__('Nova Poshta returned an incomplete streets page, sync aborted.'));
-            }
-            $streets = array_merge($streets, $result['data']);
-        }
+        $streets = $this->pages->read(function ($page) use ($cityRef) {
+            return $this->serializerToArray->unserialize(
+                $this->getServicePromise($this->prepareRequestParams($cityRef, $page))->getBody()
+            );
+        }, self::PAGE_SIZE);
         $response = $this->serializer->unserialize($this->serializer->serialize(array_merge($streets, ['success' => true])));
         $this->prepareDataFromNP($response, $cityRef);
         return $response;
@@ -281,17 +263,6 @@ class Street implements UpdateEntityInterface
             ]
         ];
         return $params;
-    }
-
-    /**
-     * @param string $cityRef
-     * @return \Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street\Collection<StreetInterface>
-     */
-    private function getStreetsFromDb(string $cityRef): \Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street\Collection
-    {
-        /** @var \Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street\Collection $collection */
-        $collection = $this->streetCollectionFactory->create();
-        return $collection->addCityRefToFilter($cityRef);
     }
 
     /**
@@ -343,19 +314,6 @@ class Street implements UpdateEntityInterface
      */
     protected function getServicePromise(array $paramsForRequest): \Magento\Framework\HTTP\AsyncClient\Response
     {
-        if (self::$count > 3) {
-            throw new LocalizedException(__('Too many attempts'));
-        }
-        try {
-            $postServicePromiseOrError = $this->postService
-                ->execute('Address', 'getStreet', $paramsForRequest)
-                ->get();
-            self::$count = 0;
-            return $postServicePromiseOrError;
-        } catch (\Throwable $e) {
-            self::$count++;
-            sleep(10);
-            return $this->getServicePromise($paramsForRequest);
-        }
+        return $this->postService->getResponse('Address', 'getStreet', $paramsForRequest);
     }
 }

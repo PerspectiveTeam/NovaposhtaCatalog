@@ -79,7 +79,8 @@ class WarehouseType implements UpdateEntityInterface
         WarehouseTypes $warehouseTypesResourceModel,
         CollectionFactory $warehouseTypesResourceModelCollectionFactory,
         Post $postService,
-        DirectorySnapshot $snapshot
+        DirectorySnapshot $snapshot,
+        private \Psr\Log\LoggerInterface $logger
     ) {
         $this->warehouseTypesResourceModelCollectionFactory = $warehouseTypesResourceModelCollectionFactory;
         $this->warehouseTypesResourceModel = $warehouseTypesResourceModel;
@@ -101,26 +102,29 @@ class WarehouseType implements UpdateEntityInterface
         $data = [];
         if ($this->configHelper->isEnabled()) {
             try {
-                $translations = [];
-                foreach (['ua', 'ru'] as $lang) {
-                    $this->lang = $lang;
-                    $rows = $this->snapshot->getResponseData($this->getDataFromEndpoint($lang));
-                    $translations[$lang] = $this->snapshot->prepare($rows, fn ($row) => $this->prepareData($row));
-                }
-                if (array_diff_key($translations['ua'], $translations['ru'])
-                    || array_diff_key($translations['ru'], $translations['ua'])
-                ) {
-                    throw new LocalizedException(__('Nova Poshta returned inconsistent warehouse type translations.'));
-                }
-                foreach ($translations['ua'] as $ref => $model) {
-                    $model->setDescriptionRu($translations['ru'][$ref]->getDescriptionRu());
-                }
-                $this->saveSnapshot($translations['ua']);
-                $this->cronSyncDateLastUpdate->updateSyncDate(CronSyncDateLastUpdate::XML_PATH_LAST_SYNC_WAREHOUSE_TYPES);
+                $this->snapshot->withLock('perspective_novaposhta_warehouse_types_sync', function () {
+                    $translations = [];
+                    foreach (['ua', 'ru'] as $lang) {
+                        $this->lang = $lang;
+                        $rows = $this->snapshot->getResponseData($this->getDataFromEndpoint($lang));
+                        $translations[$lang] = $this->snapshot->prepare($rows, fn ($row) => $this->prepareData($row));
+                    }
+                    if (array_diff_key($translations['ua'], $translations['ru'])
+                        || array_diff_key($translations['ru'], $translations['ua'])
+                    ) {
+                        throw new LocalizedException(__('Nova Poshta returned inconsistent warehouse type translations.'));
+                    }
+                    foreach ($translations['ua'] as $ref => $model) {
+                        $model->setDescriptionRu($translations['ru'][$ref]->getDescriptionRu());
+                    }
+                    $this->saveSnapshot($translations['ua']);
+                    $this->cronSyncDateLastUpdate->updateSyncDate(CronSyncDateLastUpdate::XML_PATH_LAST_SYNC_WAREHOUSE_TYPES);
+                });
                 $error = false;
                 $message = 'Successfully synced';
             } catch (\Throwable $e) {
                 $message = $e->getMessage();
+                $this->logger->error('Nova Poshta warehouse types sync failed: ' . $message);
             }
         }
         return [
@@ -179,8 +183,7 @@ class WarehouseType implements UpdateEntityInterface
         ];
         $resultFormApi = $this->serializer->unserialize(
             $this->postService
-                ->execute('Address', 'getWarehouseTypes', $paramsForRequest)
-                ->get()
+                ->getResponse('Address', 'getWarehouseTypes', $paramsForRequest)
                 ->getBody()
         );
         return $resultFormApi;

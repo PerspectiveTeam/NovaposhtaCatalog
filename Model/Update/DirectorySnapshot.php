@@ -11,7 +11,9 @@ use Magento\Framework\Model\ResourceModel\Db\AbstractDb;
 
 class DirectorySnapshot
 {
-    public function __construct(private LockManagerInterface $lockManager)
+    private array $heldLocks = [];
+
+    public function __construct(private LockManagerInterface $lockManager, private SyncPolicy $policy)
     {
     }
 
@@ -62,6 +64,24 @@ class DirectorySnapshot
         return $hasValidRef && $hasValidDescription && $hasValidTranslation;
     }
 
+    /** Keep the lock across fetching and saving; nested saves reuse the owned lock. */
+    public function withLock(string $lockName, callable $operation): mixed
+    {
+        if (isset($this->heldLocks[$lockName])) {
+            return $operation();
+        }
+        if (!$this->lockManager->lock($lockName, 0)) {
+            throw new LocalizedException(__('Nova Poshta directory sync is already in progress: %1.', $lockName));
+        }
+        $this->heldLocks[$lockName] = true;
+        try {
+            return $operation();
+        } finally {
+            unset($this->heldLocks[$lockName]);
+            $this->lockManager->unlock($lockName);
+        }
+    }
+
     /**
      * @param AbstractModel[] $models
      * @param callable(): iterable<AbstractModel> $getCollection
@@ -71,38 +91,73 @@ class DirectorySnapshot
         AbstractDb $resource,
         callable $getCollection,
         string $lockName,
-        bool $requireKnownRefs = true
+        bool $requireKnownRefs = true,
+        ?callable $findExisting = null
     ): void
     {
-        if (!$this->lockManager->lock($lockName, 0)) {
-            throw new LocalizedException(__('Nova Poshta directory sync is already in progress.'));
-        }
-        try {
+        // The legacy fifth argument is retained for callers; all directories now use the safety policy.
+        $this->withLock($lockName, function () use ($models, $resource, $getCollection, $lockName, $findExisting) {
             $existing = [];
             foreach ($getCollection() as $item) {
-                $existing[$item->getData('ref')] = $item;
+                $ref = $item->getData('ref');
+                if (isset($existing[$ref])) {
+                    throw new LocalizedException(__('Duplicate local Nova Poshta reference in %1; resolve before syncing.', $lockName));
+                }
+                $existing[$ref] = $item;
             }
-            if ($requireKnownRefs && array_diff_key($existing, $models)) {
-                throw new LocalizedException(__('Nova Poshta returned an incomplete directory, sync aborted.'));
-            }
+            $this->policy->assertAcceptable($existing, $models, $lockName);
 
             $connection = $resource->getConnection();
             $connection->beginTransaction();
             try {
                 foreach ($models as $ref => $model) {
-                    if (isset($existing[$ref])) {
-                        $id = $existing[$ref]->getId();
-                        $model = $existing[$ref]->addData($model->getData())->setId($id);
+                    $stored = $existing[$ref] ?? ($findExisting ? $findExisting($ref) : null);
+                    if ($stored !== null) {
+                        $id = $stored->getId();
+                        $model = $stored->addData($model->getData())->setId($id);
                     }
+                    $this->policy->markPresent($model);
                     $resource->save($model);
+                }
+                foreach (array_diff_key($existing, $models) as $model) {
+                    if ($this->policy->markMissing($model)) {
+                        $resource->save($model);
+                    }
                 }
                 $connection->commit();
             } catch (\Throwable $e) {
                 $connection->rollBack();
                 throw $e;
             }
-        } finally {
-            $this->lockManager->unlock($lockName);
-        }
+        });
+    }
+
+    /** Preserve identity if an API reference moves to another city. */
+    public function saveScoped(
+        array $models,
+        AbstractDb $resource,
+        callable $createCollection,
+        string $cityRef,
+        string $lockPrefix
+    ): void {
+        $lockName = $lockPrefix . sha1($cityRef);
+        $this->withLock($lockName, function () use ($models, $resource, $createCollection, $cityRef, $lockPrefix, $lockName) {
+            // Serialize only DB writes across cities, so resolving a moved Ref cannot create duplicates.
+            $this->withLock($lockPrefix . 'write', function () use ($models, $resource, $createCollection, $cityRef, $lockName) {
+                $known = [];
+                if ($models) {
+                    foreach ($createCollection()->addFieldToFilter('ref', ['in' => array_keys($models)]) as $item) {
+                        $ref = $item->getData('ref');
+                        if (isset($known[$ref])) {
+                            throw new LocalizedException(__('Duplicate local Nova Poshta reference; resolve before syncing.'));
+                        }
+                        $known[$ref] = $item;
+                    }
+                }
+                $this->save($models, $resource,
+                    fn () => $createCollection()->addFieldToFilter('city_ref', $cityRef),
+                    $lockName, true, fn ($ref) => $known[$ref] ?? null);
+            });
+        });
     }
 }
