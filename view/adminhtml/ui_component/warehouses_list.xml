@@ -95,7 +95,7 @@
                 <item name="config" xsi:type="array">
                     <item name="resizeEnabled" xsi:type="boolean">false</item>
                     <item name="resizeDefaultWidth" xsi:type="string">55</item>
-                    <item name="indexField" xsi:type="string">main_table.id</item>
+                    <item name="indexField" xsi:type="string">id</item>
                 </item>
             </argument>
         </selectionsColumn>
