@@ -13,7 +13,7 @@ use Perspective\NovaposhtaCatalog\Model\Update\Area as AreaUpdate;
  */
 class Area extends Action implements HttpPostActionInterface
 {
-    public const ADMIN_RESOURCE = 'Perspective_NovaposhtaCatalog::NovaposhtaCatalog';
+    public const ADMIN_RESOURCE = 'Perspective_NovaposhtaCatalog::settings';
 
     /**
      * @var \Perspective\NovaposhtaCatalog\Model\Update\Area

@@ -15,7 +15,7 @@ use Perspective\NovaposhtaCatalog\Model\Update\WarehouseType as UpdateHelper;
  */
 class WarehouseType extends Action implements HttpPostActionInterface
 {
-    public const ADMIN_RESOURCE = 'Perspective_NovaposhtaCatalog::NovaposhtaCatalog';
+    public const ADMIN_RESOURCE = 'Perspective_NovaposhtaCatalog::settings';
 
     /**
      * @var \Magento\Framework\Controller\Result\JsonFactory

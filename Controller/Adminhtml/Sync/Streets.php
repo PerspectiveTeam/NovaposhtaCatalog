@@ -15,7 +15,7 @@ use Perspective\NovaposhtaCatalog\Model\Update\Street as UpdateHelper;
  */
 class Streets extends Action implements HttpPostActionInterface
 {
-    public const ADMIN_RESOURCE = 'Perspective_NovaposhtaCatalog::NovaposhtaCatalog';
+    public const ADMIN_RESOURCE = 'Perspective_NovaposhtaCatalog::settings';
 
     /**
      * @var \Magento\Framework\Controller\Result\JsonFactory

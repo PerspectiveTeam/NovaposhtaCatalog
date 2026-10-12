@@ -16,7 +16,7 @@ class AreaData extends Action
 
     protected function _isAllowed()
     {
-        return $this->_authorization->isAllowed('Perspective_NovaposhtaCatalog::NovaposhtaCatalog');
+        return $this->_authorization->isAllowed('Perspective_NovaposhtaCatalog::settings');
     }
 
     public function execute()

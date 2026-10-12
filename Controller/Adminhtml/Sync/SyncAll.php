@@ -17,7 +17,7 @@ use Perspective\NovaposhtaCatalog\Model\Update\Street;
  */
 class SyncAll extends \Magento\Backend\App\Action implements HttpPostActionInterface
 {
-    public const ADMIN_RESOURCE = 'Perspective_NovaposhtaCatalog::NovaposhtaCatalog';
+    public const ADMIN_RESOURCE = 'Perspective_NovaposhtaCatalog::settings';
 
     /**
      * @var \Magento\Framework\View\Result\PageFactory

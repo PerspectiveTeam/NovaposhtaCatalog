@@ -14,7 +14,7 @@ use Magento\Framework\View\Element\UiComponent\Control\ButtonProviderInterface;
  */
 class SyncButton implements ButtonProviderInterface
 {
-    private const ACL_RESOURCE = 'Perspective_NovaposhtaCatalog::NovaposhtaCatalog';
+    private const ACL_RESOURCE = 'Perspective_NovaposhtaCatalog::settings';
 
     /**
      * @var UrlInterface

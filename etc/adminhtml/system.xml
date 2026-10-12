@@ -14,7 +14,7 @@
             <tab>perspective</tab>
             <class>separator-top</class>
             <label>Nova Poshta Catalog</label>
-            <resource>Perspective_NovaposhtaCatalog::NovaposhtaCatalog</resource>
+            <resource>Perspective_NovaposhtaCatalog::settings</resource>
             <group id="catalog" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="0"
                    showInStore="1">
                 <label>General settings</label>

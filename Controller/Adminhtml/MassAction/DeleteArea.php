@@ -14,7 +14,7 @@ use Perspective\NovaposhtaCatalog\Model\ResourceModel\Area\Area\CollectionFactor
 
 class DeleteArea extends Action implements HttpPostActionInterface
 {
-    public const ADMIN_RESOURCE = 'Perspective_NovaposhtaCatalog::NovaposhtaCatalog';
+    public const ADMIN_RESOURCE = 'Perspective_NovaposhtaCatalog::settings';
 
     /**
      * @var \Magento\Ui\Component\MassAction\Filter
