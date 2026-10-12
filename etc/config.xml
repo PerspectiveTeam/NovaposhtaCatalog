@@ -2,6 +2,11 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
 	<default>
 		<novaposhta_catalog>
+            <sync_safety>
+                <confirmations>2</confirmations>
+                <confirmation_hours>24</confirmation_hours>
+                <max_missing_percent>20</max_missing_percent>
+            </sync_safety>
 			<schedule>
                 <active>1</active>
 			</schedule>

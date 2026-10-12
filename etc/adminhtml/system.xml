@@ -210,6 +210,27 @@
                     <backend_model>Magento\Config\Model\Config\Backend\Serialized\ArraySerialized</backend_model>
                 </field>
             </group>
+            <group id="sync_safety" translate="label" sortOrder="6" showInDefault="1" showInWebsite="0" showInStore="0">
+                <label>Synchronization safety</label>
+                <field id="confirmations" translate="label comment" type="text" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Missing confirmations</label>
+                    <comment>Minimum 2. Failed imports never count.</comment>
+                    <validate>validate-digits required-entry</validate>
+                    <backend_model>Perspective\NovaposhtaCatalog\Model\Config\Backend\SyncSafety</backend_model>
+                </field>
+                <field id="confirmation_hours" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Hours between confirmations</label>
+                    <comment>UTC interval, minimum 1 hour; default 24.</comment>
+                    <validate>validate-digits required-entry</validate>
+                    <backend_model>Perspective\NovaposhtaCatalog\Model\Config\Backend\SyncSafety</backend_model>
+                </field>
+                <field id="max_missing_percent" translate="label comment" type="text" sortOrder="30" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Maximum missing active references (%)</label>
+                    <comment>Default 20. Larger losses reject the whole snapshot. Review the response before temporarily raising this threshold; restore it after recovery.</comment>
+                    <validate>validate-digits required-entry</validate>
+                    <backend_model>Perspective\NovaposhtaCatalog\Model\Config\Backend\SyncSafety</backend_model>
+                </field>
+            </group>
         </section>
     </system>
 </config>

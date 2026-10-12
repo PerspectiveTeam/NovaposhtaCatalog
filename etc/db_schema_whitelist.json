@@ -4,7 +4,11 @@
             "id": true,
             "ref": true,
             "description_ua": true,
-            "description_ru": true
+            "description_ru": true,
+            "is_active": true,
+            "last_seen_at": true,
+            "missing_successful_syncs": true,
+            "last_missing_at": true
         },
         "constraint": {
             "PRIMARY": true
@@ -20,7 +24,11 @@
             "width": true,
             "height": true,
             "volumetric_weight": true,
-            "packaging_for_place": true
+            "packaging_for_place": true,
+            "is_active": true,
+            "last_seen_at": true,
+            "missing_successful_syncs": true,
+            "last_missing_at": true
         },
         "constraint": {
             "PRIMARY": true
@@ -60,7 +68,11 @@
             "schedule": true,
             "district_code": true,
             "warehouse_status": true,
-            "category_of_warehouse": true
+            "category_of_warehouse": true,
+            "is_active": true,
+            "last_seen_at": true,
+            "missing_successful_syncs": true,
+            "last_missing_at": true
         },
         "index": {
             "PERSPECTIVE_NOVAPOSHTA_CATALOG_WAREHOUSE_CITY_REF": true
@@ -89,7 +101,11 @@
             "conglomerates": true,
             "city_id": true,
             "settlement_type_description_ru": true,
-            "settlement_type_description_ua": true
+            "settlement_type_description_ua": true,
+            "is_active": true,
+            "last_seen_at": true,
+            "missing_successful_syncs": true,
+            "last_missing_at": true
         },
         "index": {
             "PERSPECTIVE_NOVAPOSHTA_CATALOG_CITIES_REF": true,
@@ -105,7 +121,11 @@
             "ref": true,
             "areas_center": true,
             "description_ua": true,
-            "description_ru": true
+            "description_ru": true,
+            "is_active": true,
+            "last_seen_at": true,
+            "missing_successful_syncs": true,
+            "last_missing_at": true
         },
         "index": {
             "PERSPECTIVE_NOVAPOSHTA_CATALOG_AREAS_REF": true
@@ -122,7 +142,11 @@
             "description": true,
             "street_type_ref": true,
             "street_type": true,
-            "city_ref": true
+            "city_ref": true,
+            "is_active": true,
+            "last_seen_at": true,
+            "missing_successful_syncs": true,
+            "last_missing_at": true
         },
         "index": {
             "PERSPECTIVE_NOVAPOSHTA_CATALOG_STREET_ID": true,

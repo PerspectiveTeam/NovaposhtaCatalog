@@ -265,4 +265,38 @@
             <argument name="asyncClient" xsi:type="object">Perspective\NovaposhtaCatalog\Service\HTTP\AsyncClient\GuzzleAsyncClient</argument>
         </arguments>
     </type>
+    <type name="Perspective\NovaposhtaCatalog\Controller\Adminhtml\MassAction\Deactivate">
+        <arguments>
+            <argument name="collectionFactories" xsi:type="array">
+                <item name="areas" xsi:type="object">Perspective\NovaposhtaCatalog\Model\ResourceModel\Area\Area\CollectionFactory</item>
+                <item name="cities" xsi:type="object">Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\CollectionFactory</item>
+                <item name="warehouses" xsi:type="object">Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\CollectionFactory</item>
+                <item name="streets" xsi:type="object">Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street\CollectionFactory</item>
+                <item name="packages" xsi:type="object">Perspective\NovaposhtaCatalog\Model\ResourceModel\Package\Package\CollectionFactory</item>
+                <item name="warehouse_types" xsi:type="object">Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\WarehouseTypes\CollectionFactory</item>
+            </argument>
+            <argument name="resources" xsi:type="array">
+                <item name="areas" xsi:type="object">Perspective\NovaposhtaCatalog\Model\ResourceModel\Area\Area</item>
+                <item name="cities" xsi:type="object">Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City</item>
+                <item name="warehouses" xsi:type="object">Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse</item>
+                <item name="streets" xsi:type="object">Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street</item>
+                <item name="packages" xsi:type="object">Perspective\NovaposhtaCatalog\Model\ResourceModel\Package\Package</item>
+                <item name="warehouse_types" xsi:type="object">Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\WarehouseTypes</item>
+            </argument>
+        </arguments>
+    </type>
+    <type name="Perspective\NovaposhtaCatalog\Controller\Adminhtml\MassAction\DeleteArea">
+        <arguments><argument name="defaultDirectory" xsi:type="string">areas</argument></arguments>
+    </type>
+    <virtualType name="Perspective\NovaposhtaCatalog\ActivePackageCollectionFactory" type="Perspective\NovaposhtaCatalog\Model\ResourceModel\Package\Package\CollectionFactory">
+        <arguments>
+            <argument name="instanceName" xsi:type="string">Perspective\NovaposhtaCatalog\Model\ResourceModel\Package\Package\ActiveCollection</argument>
+        </arguments>
+    </virtualType>
+    <!-- Optional Shipping consumer: preserve raw Catalog collections for imports and history. -->
+    <type name="Perspective\NovaposhtaShipping\Helper\Boxpacker">
+        <arguments>
+            <argument name="packageTypesResourceModelCollectionFactory" xsi:type="object">Perspective\NovaposhtaCatalog\ActivePackageCollectionFactory</argument>
+        </arguments>
+    </type>
 </config>

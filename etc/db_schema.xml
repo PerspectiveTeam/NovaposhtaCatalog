@@ -1,6 +1,10 @@
 <?xml version="1.0"?>
 <schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
   <table name="perspective_novaposhta_catalog_warehouse_types" resource="default" engine="innodb" comment="Warehouse types">
+    <column xsi:type="smallint" name="is_active" unsigned="true" nullable="false" default="1" comment="Available for New Delivery"/>
+    <column xsi:type="datetime" name="last_seen_at" nullable="true" comment="Last Successful API Presence UTC"/>
+    <column xsi:type="smallint" name="missing_successful_syncs" unsigned="true" nullable="false" default="0" comment="Separated Missing Confirmations"/>
+    <column xsi:type="datetime" name="last_missing_at" nullable="true" comment="Last Counted Missing Confirmation UTC"/>
     <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="Entity Id"/>
     <column xsi:type="varchar" name="ref" nullable="true" length="255" comment="ref"/>
     <column xsi:type="longtext" name="description_ua" nullable="true" comment="description_ua"/>
@@ -10,6 +14,10 @@
     </constraint>
   </table>
   <table name="perspective_novaposhta_catalog_package_types" resource="default" engine="innodb" comment="Package types">
+    <column xsi:type="smallint" name="is_active" unsigned="true" nullable="false" default="1" comment="Available for New Delivery"/>
+    <column xsi:type="datetime" name="last_seen_at" nullable="true" comment="Last Successful API Presence UTC"/>
+    <column xsi:type="smallint" name="missing_successful_syncs" unsigned="true" nullable="false" default="0" comment="Separated Missing Confirmations"/>
+    <column xsi:type="datetime" name="last_missing_at" nullable="true" comment="Last Counted Missing Confirmation UTC"/>
     <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="Entity Id"/>
     <column xsi:type="varchar" name="ref" nullable="true" length="255" comment="ref"/>
     <column xsi:type="longtext" name="description_ua" nullable="true" comment="description_ua"/>
@@ -24,6 +32,10 @@
     </constraint>
   </table>
   <table name="perspective_novaposhta_catalog_warehouse" resource="default" engine="innodb" comment="Warehouses from api">
+    <column xsi:type="smallint" name="is_active" unsigned="true" nullable="false" default="1" comment="Available for New Delivery"/>
+    <column xsi:type="datetime" name="last_seen_at" nullable="true" comment="Last Successful API Presence UTC"/>
+    <column xsi:type="smallint" name="missing_successful_syncs" unsigned="true" nullable="false" default="0" comment="Separated Missing Confirmations"/>
+    <column xsi:type="datetime" name="last_missing_at" nullable="true" comment="Last Counted Missing Confirmation UTC"/>
     <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="Entity Id"/>
     <column xsi:type="longtext" name="site_key" nullable="true" comment="site_key"/>
     <column xsi:type="longtext" name="description_ua" nullable="true" comment="description_ua"/>
@@ -65,6 +77,10 @@
     </index>
   </table>
   <table name="perspective_novaposhta_catalog_cities" resource="default" engine="innodb" comment="Cities from warehouse">
+    <column xsi:type="smallint" name="is_active" unsigned="true" nullable="false" default="1" comment="Available for New Delivery"/>
+    <column xsi:type="datetime" name="last_seen_at" nullable="true" comment="Last Successful API Presence UTC"/>
+    <column xsi:type="smallint" name="missing_successful_syncs" unsigned="true" nullable="false" default="0" comment="Separated Missing Confirmations"/>
+    <column xsi:type="datetime" name="last_missing_at" nullable="true" comment="Last Counted Missing Confirmation UTC"/>
     <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="Entity Id"/>
     <column xsi:type="longtext" name="descriptionua" nullable="true" comment="descriptionua"/>
     <column xsi:type="longtext" name="descriptionru" nullable="true" comment="descriptionru"/>
@@ -98,6 +114,10 @@
       </index>
   </table>
     <table name="perspective_novaposhta_catalog_areas" resource="default" engine="innodb" comment="Areas from Nova Poshta API">
+    <column xsi:type="smallint" name="is_active" unsigned="true" nullable="false" default="1" comment="Available for New Delivery"/>
+    <column xsi:type="datetime" name="last_seen_at" nullable="true" comment="Last Successful API Presence UTC"/>
+    <column xsi:type="smallint" name="missing_successful_syncs" unsigned="true" nullable="false" default="0" comment="Separated Missing Confirmations"/>
+    <column xsi:type="datetime" name="last_missing_at" nullable="true" comment="Last Counted Missing Confirmation UTC"/>
         <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="Entity Id"/>
         <column xsi:type="varchar" name="ref" nullable="false" length="255" comment="ref"/>
         <column xsi:type="varchar" name="areas_center" nullable="true" length="255" comment="areas_center"/>
@@ -112,6 +132,10 @@
     </table>
     <table name="perspective_novaposhta_catalog_street" resource="default" engine="innodb"
            comment="NovaPoshta Street entity">
+    <column xsi:type="smallint" name="is_active" unsigned="true" nullable="false" default="1" comment="Available for New Delivery"/>
+    <column xsi:type="datetime" name="last_seen_at" nullable="true" comment="Last Successful API Presence UTC"/>
+    <column xsi:type="smallint" name="missing_successful_syncs" unsigned="true" nullable="false" default="0" comment="Separated Missing Confirmations"/>
+    <column xsi:type="datetime" name="last_missing_at" nullable="true" comment="Last Counted Missing Confirmation UTC"/>
         <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true"
                 comment="Street Id Column"/>
         <column xsi:type="varchar" name="ref" nullable="false" length="255" comment="Street Identifier"/>
