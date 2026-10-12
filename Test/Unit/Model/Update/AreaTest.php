@@ -24,6 +24,7 @@ use Psr\Log\LoggerInterface;
 
 class AreaTest extends TestCase
 {
+    use SnapshotTestSupport;
     private const LOCK_NAME = 'perspective_novaposhta_areas_sync';
 
     private AreaResource&MockObject $resource;
@@ -53,7 +54,7 @@ class AreaTest extends TestCase
         $this->connection->expects(self::never())->method('beginTransaction');
 
         $this->expectException(LocalizedException::class);
-        $this->expectExceptionMessage('incomplete areas list');
+        $this->expectExceptionMessage('active references are missing');
         $service->setDataToDB(array_map(self::row(...), $refs));
     }
 
@@ -166,7 +167,7 @@ class AreaTest extends TestCase
         $date = $this->createMock(CronSyncDateLastUpdate::class);
         $date->expects(self::never())->method('updateSyncDate');
         $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects(self::once())->method('critical');
+        $logger->expects(self::once())->method('error');
         $this->setExistingAreas(['area-a' => 11, 'area-b' => 12]);
         $service = $this->getMockBuilder(Area::class)
             ->setConstructorArgs($this->dependencies($config, $date, $logger))
@@ -179,7 +180,7 @@ class AreaTest extends TestCase
         $result = $service->execute();
 
         self::assertTrue($result['error']);
-        self::assertStringContainsString('incomplete areas list', $result['message']);
+        self::assertStringContainsString('active references are missing', $result['message']);
     }
 
     private function createService(array $existing = []): Area
@@ -196,7 +197,7 @@ class AreaTest extends TestCase
     {
         return [
             $config, $date, $this->createStub(SerializerInterface::class), $this->areaFactory,
-            $this->resource, $this->collectionFactory, $this->createStub(Post::class), $logger, $this->lockManager,
+            $this->resource, $this->collectionFactory, $this->createStub(Post::class), $logger, new \Perspective\NovaposhtaCatalog\Model\Update\DirectorySnapshot($this->lockManager, $this->policy()),
         ];
     }
 

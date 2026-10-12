@@ -24,6 +24,7 @@ use Psr\Log\LoggerInterface;
 
 class StreetTest extends TestCase
 {
+    use SnapshotTestSupport;
     #[DataProvider('pageScenarios')]
     public function testRequiresAllPagesWithConsistentCountsAndUniqueValidRows(string $case): void
     {
@@ -64,6 +65,7 @@ class StreetTest extends TestCase
         $collection->method('removeAllFieldsFromSelect')->willReturnSelf();
         $collection->method('addFieldToSelect')->willReturnSelf();
         $collection->method('addOrder')->willReturnSelf();
+        $collection->method('addFieldToFilter')->willReturnSelf();
         $collection->method('getIterator')->willReturn(new \ArrayIterator([$city]));
         $factory = $this->createStub(CollectionFactory::class);
         $factory->method('create')->willReturn($collection);
@@ -105,18 +107,32 @@ class StreetTest extends TestCase
 
     private function service(array $methods): Street
     {
-        $service = $this->getMockBuilder(Street::class)->disableOriginalConstructor()->onlyMethods($methods)->getMock();
+        $service = $methods ? $this->getMockBuilder(Street::class)->disableOriginalConstructor()->onlyMethods($methods)->getMock()
+            : (new \ReflectionClass(Street::class))->newInstanceWithoutConstructor();
         $config = $this->createStub(Config::class);
         $config->method('isEnabled')->willReturn(true);
         $factory = $this->createStub(StreetInterfaceFactory::class);
         $factory->method('create')->willReturnCallback(fn () => (new \ReflectionClass(StreetModel::class))->newInstanceWithoutConstructor());
         foreach (['configHelper' => $config, 'streetFactory' => $factory,
-            'snapshot' => new DirectorySnapshot($this->createStub(LockManagerInterface::class)),
+            'snapshot' => new DirectorySnapshot($this->availableLock(), $this->policy()),
+            'pages' => new \Perspective\NovaposhtaCatalog\Model\Update\PagedDirectory(),
             'postService' => $this->createStub(Post::class), 'serializer' => new JsonAsObject(),
             'serializerToArray' => new Json(), 'logger' => $this->createStub(LoggerInterface::class)] as $name => $value) {
             $this->inject($service, $name, $value);
         }
         return $service;
+    }
+
+    public function testExhaustedRateLimitIsNotRetriedAgainAsATransportFailure(): void
+    {
+        $service = $this->service([]);
+        $post = $this->createMock(Post::class);
+        $post->expects(self::once())->method('getResponse')->willThrowException(
+            new \Perspective\NovaposhtaCatalog\Service\HTTP\RateLimitException(__('Rate limit exhausted'))
+        );
+        $this->inject($service, 'postService', $post);
+        $this->expectException(\Perspective\NovaposhtaCatalog\Service\HTTP\RateLimitException::class);
+        $service->getDataFromEndpoint('city-a');
     }
 
     private function inject(object $service, string $property, mixed $value): void

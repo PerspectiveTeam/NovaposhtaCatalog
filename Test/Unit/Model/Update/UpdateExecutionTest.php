@@ -19,6 +19,7 @@ use Psr\Log\LoggerInterface;
 
 class UpdateExecutionTest extends TestCase
 {
+    use SnapshotTestSupport;
     #[DataProvider('globalUpdates')]
     public function testGlobalUpdateReportsErrorsAndOnlyDatesSuccessfulWrites(string $class, string $case): void
     {
@@ -27,10 +28,8 @@ class UpdateExecutionTest extends TestCase
         $config = $this->createStub(Config::class);
         $config->method('isEnabled')->willReturn(true);
         $this->inject($service, $class, 'configHelper', $config);
-        $this->inject($service, $class, 'snapshot', new DirectorySnapshot($this->createStub(LockManagerInterface::class)));
-        if ($class === City::class) {
-            $this->inject($service, $class, 'logger', $this->createStub(LoggerInterface::class));
-        }
+        $this->inject($service, $class, 'snapshot', new DirectorySnapshot($this->availableLock(), $this->policy()));
+        $this->inject($service, $class, 'logger', $this->createStub(LoggerInterface::class));
         $date = $this->createMock(CronSyncDateLastUpdate::class);
         $date->expects($case === 'success' ? self::once() : self::never())->method('updateSyncDate');
         $this->inject($service, $class, 'cronSyncDateLastUpdate', $date);
@@ -66,13 +65,15 @@ class UpdateExecutionTest extends TestCase
         $config = $this->createStub(Config::class);
         $config->method('isEnabled')->willReturn(true);
         $this->inject($service, WarehouseType::class, 'configHelper', $config);
+        $this->inject($service, WarehouseType::class, 'logger', $this->createStub(LoggerInterface::class));
         $factory = $this->createStub(WarehouseTypesFactory::class);
         $factory->method('create')->willReturnCallback(fn () => (new \ReflectionClass(WarehouseTypes::class))->newInstanceWithoutConstructor());
         $this->inject($service, WarehouseType::class, 'warehouseTypesFactory', $factory);
         $this->inject($service, WarehouseType::class, 'warehouseTypesResourceModel', $this->createStub(\Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\WarehouseTypes::class));
         $this->inject($service, WarehouseType::class, 'warehouseTypesResourceModelCollectionFactory', $this->createStub(\Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\WarehouseTypes\CollectionFactory::class));
-        $realSnapshot = new DirectorySnapshot($this->createStub(LockManagerInterface::class));
+        $realSnapshot = new DirectorySnapshot($this->availableLock(), $this->policy());
         $snapshot = $this->createMock(DirectorySnapshot::class);
+        $snapshot->method('withLock')->willReturnCallback(fn ($name, $operation) => $operation());
         $snapshot->method('getResponseData')->willReturnCallback($realSnapshot->getResponseData(...));
         $snapshot->method('prepare')->willReturnCallback($realSnapshot->prepare(...));
         $shouldSave = in_array($case, ['success', 'save_failure'], true);

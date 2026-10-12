@@ -15,10 +15,11 @@ use PHPUnit\Framework\TestCase;
 
 class DirectorySnapshotTest extends TestCase
 {
+    use SnapshotTestSupport;
     #[DataProvider('invalidLists')]
     public function testRejectsInvalidListsBeforePreparingAnyInvalidRecord(mixed $data): void
     {
-        $service = new DirectorySnapshot($this->createStub(LockManagerInterface::class));
+        $service = new DirectorySnapshot($this->availableLock(), $this->policy());
         $this->expectException(LocalizedException::class);
         $service->prepare($data, fn ($row) => $this->model($row->Ref));
     }
@@ -40,7 +41,7 @@ class DirectorySnapshotTest extends TestCase
     #[DataProvider('invalidResponses')]
     public function testRejectsInvalidApiResponses(mixed $response): void
     {
-        $service = new DirectorySnapshot($this->createStub(LockManagerInterface::class));
+        $service = new DirectorySnapshot($this->availableLock(), $this->policy());
         $this->expectException(LocalizedException::class);
         $service->getResponseData($response);
     }
@@ -54,7 +55,7 @@ class DirectorySnapshotTest extends TestCase
 
     public function testEmptyListIsAllowedOnlyExplicitlyForStreets(): void
     {
-        $service = new DirectorySnapshot($this->createStub(LockManagerInterface::class));
+        $service = new DirectorySnapshot($this->availableLock(), $this->policy());
         self::assertSame([], $service->prepare([], fn () => null, true));
     }
 
@@ -102,11 +103,12 @@ class DirectorySnapshotTest extends TestCase
         $service->save(['a' => $this->model('a')], $resource, fn () => [], 'test');
     }
 
-    public function testStreetUpsertDoesNotDeleteAbsentStreets(): void
+    public function testLegacyFlagCannotBypassTheMissingReferenceGuard(): void
     {
         [$service, $resource, $connection] = $this->writer();
-        $resource->expects(self::once())->method('save');
-        $connection->expects(self::once())->method('commit');
+        $resource->expects(self::never())->method('save');
+        $connection->expects(self::never())->method('beginTransaction');
+        $this->expectException(LocalizedException::class);
         $service->save(['a' => $this->model('a')], $resource, fn () => [$this->model('a', 11), $this->model('b', 12)], 'test', false);
     }
 
@@ -132,7 +134,7 @@ class DirectorySnapshotTest extends TestCase
         $resource = $this->createMock(AbstractDb::class);
         $resource->expects(self::never())->method('save');
         $this->expectException(LocalizedException::class);
-        (new DirectorySnapshot($lock))->save([], $resource, function () { self::fail('Collection read while lock is busy'); }, 'test');
+        (new DirectorySnapshot($lock, $this->policy()))->save([], $resource, function () { self::fail('Collection read while lock is busy'); }, 'test');
     }
 
     private function writer(): array
@@ -145,7 +147,36 @@ class DirectorySnapshotTest extends TestCase
         $connection = $this->createMock(AdapterInterface::class);
         $connection->expects(self::never())->method('delete');
         $resource->method('getConnection')->willReturn($connection);
-        return [new DirectorySnapshot($lock), $resource, $connection];
+        return [new DirectorySnapshot($lock, $this->policy()), $resource, $connection];
+    }
+
+    public function testFetchAndSaveReuseOneLockAndReleaseItAfterCommit(): void
+    {
+        [$service, $resource, $connection] = $this->writer();
+        $connection->expects(self::once())->method('commit');
+        $resource->expects(self::once())->method('save');
+        $service->withLock('test', function () use ($service, $resource) {
+            $service->save(['a' => $this->model('a')], $resource, fn () => [], 'test');
+        });
+    }
+
+    public function testNetworkExceptionReleasesLockWithoutStartingATransaction(): void
+    {
+        [$service, $resource, $connection] = $this->writer();
+        $connection->expects(self::never())->method('beginTransaction');
+        $resource->expects(self::never())->method('save');
+        $this->expectExceptionMessage('Network failure');
+        $service->withLock('test', function () { throw new \RuntimeException('Network failure'); });
+    }
+
+    public function testDuplicateStoredReferencesCannotBeSilentlyCollapsed(): void
+    {
+        [$service, $resource, $connection] = $this->writer();
+        $connection->expects(self::never())->method('beginTransaction');
+        $resource->expects(self::never())->method('save');
+        $this->expectException(LocalizedException::class);
+        $service->save(['a' => $this->model('a')], $resource,
+            fn () => [$this->model('a', 11), $this->model('a', 12)], 'test');
     }
 
     private function model(string $ref, ?int $id = null): AbstractModel
