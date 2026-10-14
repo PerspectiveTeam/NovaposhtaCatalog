@@ -34,6 +34,9 @@ class WarehouseTest extends TestCase
     public function testOnlyAcceptsCompleteConsistentCitySnapshots(string $case): void
     {
         $service = $this->service(['getServicePromise']);
+        $factory = $this->createMock(WarehouseFactory::class);
+        $factory->expects(self::never())->method('create');
+        $this->inject($service, 'warehouseFactory', $factory);
         $first = array_map(self::row(...), range(1, 100));
         $second = [self::row(101)];
         $total = $case === 'empty' ? 0 : 101;
@@ -109,6 +112,58 @@ class WarehouseTest extends TestCase
     public static function executionCases(): array
     {
         return [['success'], ['api_failure'], ['save_failure']];
+    }
+
+    public function testWarehouseImportLoadsOnlyActiveCityIdsAndReferences(): void
+    {
+        $service = $this->service(['getDataFromEndpoint', 'setDataToDb']);
+        $city = (new \ReflectionClass(City::class))->newInstanceWithoutConstructor()->setId(11)->setRef('city-a');
+        $collection = $this->createMock(\Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\Collection::class);
+        $collection->expects(self::once())->method('removeAllFieldsFromSelect')->willReturnSelf();
+        $collection->expects(self::once())->method('addFieldToSelect')->with(['id', 'ref'])->willReturnSelf();
+        $collection->expects(self::once())->method('addFieldToFilter')->with('is_active', 1)->willReturnSelf();
+        $collection->expects(self::once())->method('getItems')->willReturn([$city]);
+        $factory = $this->createMock(\Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\CollectionFactory::class);
+        $factory->expects(self::once())->method('create')->willReturn($collection);
+        $this->inject($service, 'cityCollectionFactory', $factory);
+        $repo = $this->createMock(CityRepositoryInterface::class);
+        $repo->expects(self::never())->method('getList');
+        $this->inject($service, 'cityRepository', $repo);
+        $date = $this->createMock(CronSyncDateLastUpdate::class);
+        $date->expects(self::once())->method('updateSyncDate');
+        $this->inject($service, 'cronSyncDateLastUpdate', $date);
+        $response = (object)['success' => true];
+        $service->expects(self::once())->method('getDataFromEndpoint')->with('city-a')->willReturn($response);
+        $service->expects(self::once())->method('setDataToDb')->with($response, 'city-a');
+        self::assertFalse($service->execute()['error']);
+    }
+
+    public function testFetchDoesNotCreateModelsAndSaveCreatesEachModelOnce(): void
+    {
+        $service = $this->service(['getServicePromise']);
+        $rows = [self::row(1), self::row(2)];
+        $service->expects(self::once())->method('getServicePromise')->willReturn(new Response(200, [], json_encode([
+            'success' => true, 'data' => $rows, 'info' => ['totalCount' => 2],
+        ])));
+        $factory = $this->createMock(WarehouseFactory::class);
+        $created = 0;
+        $factory->expects(self::exactly(2))->method('create')->willReturnCallback(function () use (&$created) {
+            ++$created;
+            return (new \ReflectionClass(WarehouseModel::class))->newInstanceWithoutConstructor();
+        });
+        $this->inject($service, 'warehouseFactory', $factory);
+        $response = $service->getDataFromEndpoint('city-a');
+        self::assertSame(0, $created);
+        $snapshot = $this->getMockBuilder(DirectorySnapshot::class)
+            ->setConstructorArgs([$this->availableLock(), $this->policy()])->onlyMethods(['saveScoped'])->getMock();
+        $snapshot->expects(self::once())->method('saveScoped')->willReturnCallback(function ($models, $resource, $collection, $cityRef) {
+            self::assertSame(['warehouse-1', 'warehouse-2'], array_keys($models));
+            self::assertSame('city-a', $cityRef);
+        });
+        $this->inject($service, 'snapshot', $snapshot);
+        $this->inject($service, 'warehouseResourceModel', $this->createStub(\Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse::class));
+        $service->setDataToDb($response, 'city-a');
+        self::assertSame(2, $created);
     }
 
     private function service(array $methods): Warehouse

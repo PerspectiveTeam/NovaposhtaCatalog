@@ -190,6 +190,9 @@
         <index referenceId="PERSPECTIVE_NOVAPOSHTA_CATALOG_STREET_ID_IDX" indexType="btree">
             <column name="id"/>
         </index>
+        <index referenceId="PERSPECTIVE_NOVAPOSHTA_CATALOG_STREET_REF" indexType="btree">
+            <column name="ref"/>
+        </index>
         <index referenceId="PERSPECTIVE_NOVAPOSHTA_CATALOG_STREET_CITY_REF" indexType="btree">
             <column name="city_ref"/>
         </index>

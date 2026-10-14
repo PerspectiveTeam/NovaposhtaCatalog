@@ -143,6 +143,7 @@ php bin/magento cache:clean config layout block_html
 | [Service/HTTP/RateLimitRetry.php](Service/HTTP/RateLimitRetry.php) | Retries requests after rate limits or transport failures |
 | [etc/db_schema.xml](etc/db_schema.xml) | Local directory tables |
 | [Test/Unit/](Test/Unit/) | Tests for Directory Map, synchronization safeguards, and request retries |
+| [Test/Integration/](Test/Integration/README.md) | Temporary-table persistence checks, baseline comparison, and benchmark results |
 
 Get repositories through Magento DI. A plugin on
 `Magento\Directory\Model\Region::getName()` returns Ukrainian names
@@ -194,9 +195,18 @@ a later import can reactivate a record present in the API.
   consistent `totalCount`. If processing fails for a city, its changes
   are not saved; data already saved for earlier cities stays in place.
 - `RateLimitRetry` retries the same request or page on HTTP 429, an API
-  `too many requests` message, or a transport failure. The limit is 5 attempts
+  `too many requests` message, or a transport failure. The limit is 6 attempts
   in total and 180 seconds of cumulative delays, excluding request execution
-  time. It respects `Retry-After`; otherwise, the delay increases between attempts.
+  time. It respects `Retry-After`; otherwise, pauses are 5, 10, 20, 40 and 60 seconds.
+  `Retry-After` may exceed 60 seconds; a delay exceeding the remaining budget aborts the import.
+- API requests remain sequential. Response validation does not construct Magento models;
+  models are created before persistence. Street Ref lookups use a non-unique index.
+- Each manual or cron directory import logs `Nova Poshta synchronization metrics.`:
+  elapsed time, API time, validation and model preparation, database reads and writes,
+  request and retry counts, HTTP 429 and API rate limits. API time includes retries
+  and waiting; `retry_wait` reports those pauses separately, so do not add these two
+  measurements. Peak memory applies to the entire PHP process. Metric contexts omit
+  API keys, responses and exception messages.
 - Individual Store View updates and grid synchronization buttons run the import
   within the HTTP request. Use cron for large directories.
 - A successful overall cron status does not mean every directory was updated.

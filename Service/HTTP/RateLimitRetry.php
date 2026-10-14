@@ -10,14 +10,19 @@ use Magento\Framework\HTTP\AsyncClient\HttpException;
 use GuzzleHttp\Exception\TransferException;
 use Magento\Framework\Stdlib\DateTime\DateTime;
 use Psr\Log\LoggerInterface;
+use Perspective\NovaposhtaCatalog\Service\SyncMetrics;
 
 class RateLimitRetry
 {
-    private const MAX_ATTEMPTS = 5;
+    private const MAX_ATTEMPTS = 6;
     private const MAX_WAIT_SECONDS = 180;
 
-    public function __construct(private RetryDelay $delay, private DateTime $clock, private LoggerInterface $logger)
-    {
+    public function __construct(
+        private RetryDelay $delay,
+        private DateTime $clock,
+        private LoggerInterface $logger,
+        private ?SyncMetrics $metrics = null
+    ) {
     }
 
     /** Retry the same read request/page; attempts and cumulative sleeping are bounded. */
@@ -28,6 +33,7 @@ class RateLimitRetry
             $response = null;
             $failure = null;
             try {
+                $this->metrics?->increment('requests');
                 $response = $request();
             } catch (HttpException | TransferException $e) {
                 $failure = $e;
@@ -37,6 +43,12 @@ class RateLimitRetry
                     throw new LocalizedException(__('Nova Poshta HTTP request failed with status %1.', $response->getStatusCode()));
                 }
                 return $response;
+            }
+            if ($response !== null) {
+                $this->metrics?->increment('rate_limits');
+                if ($response->getStatusCode() === 429) {
+                    $this->metrics?->increment('http_429');
+                }
             }
             if ($attempt === self::MAX_ATTEMPTS) {
                 if ($failure !== null) {
@@ -52,7 +64,12 @@ class RateLimitRetry
                 : 'Nova Poshta transport failure; retrying the same request.', [
                 'attempt' => $attempt, 'delay_seconds' => $seconds, 'http_status' => $response?->getStatusCode(),
             ]);
-            $this->delay->wait($seconds);
+            $this->metrics?->increment('retries');
+            if ($this->metrics !== null) {
+                $this->metrics->measure('retry_wait', fn () => $this->delay->wait($seconds));
+            } else {
+                $this->delay->wait($seconds);
+            }
             $waited += $seconds;
         }
         throw new \LogicException('Unreachable retry state.');
@@ -97,6 +114,6 @@ class RateLimitRetry
 
     private function getBackoff(int $attempt): int
     {
-        return min(60, 10 * (2 ** ($attempt - 1)) + random_int(0, 3));
+        return min(60, 5 * (2 ** ($attempt - 1)));
     }
 }

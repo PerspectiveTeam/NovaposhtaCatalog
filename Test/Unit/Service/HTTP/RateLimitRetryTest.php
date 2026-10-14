@@ -27,11 +27,7 @@ class RateLimitRetryTest extends TestCase
             return ++$calls < 3 ? $limited : $success;
         }));
         self::assertSame(3, $calls);
-        self::assertCount(2, $delays);
-        self::assertGreaterThanOrEqual(10, $delays[0]);
-        self::assertLessThanOrEqual(13, $delays[0]);
-        self::assertGreaterThanOrEqual(20, $delays[1]);
-        self::assertLessThanOrEqual(23, $delays[1]);
+        self::assertSame([5, 10], $delays);
     }
 
     public static function throttledResponses(): array
@@ -55,11 +51,11 @@ class RateLimitRetryTest extends TestCase
 
     public static function retryAfterHeaders(): array
     {
-        return [['7', 7], ['0007', 7], ['0', 1], [gmdate('D, d M Y H:i:s', 1760000030) . ' GMT', 30],
+        return [['120', 120], ['7', 7], ['0007', 7], ['0', 1], [gmdate('D, d M Y H:i:s', 1760000030) . ' GMT', 30],
             [gmdate('D, d M Y H:i:s', 1759999990) . ' GMT', 1]];
     }
 
-    public function testStopsAfterFiveAttemptsWithBoundedExponentialBackoff(): void
+    public function testStopsAfterSixAttemptsWithBoundedExponentialBackoff(): void
     {
         $delays = [];
         $calls = 0;
@@ -67,12 +63,12 @@ class RateLimitRetryTest extends TestCase
             $this->service($delays)->execute(function () use (&$calls) { ++$calls; return new Response(429, [], ''); });
             self::fail('Rate limit was not reported');
         } catch (RateLimitException $e) {
-            self::assertStringContainsString('5 attempts', $e->getMessage());
+            self::assertStringContainsString('6 attempts', $e->getMessage());
         }
-        self::assertSame(5, $calls);
-        self::assertCount(4, $delays);
+        self::assertSame(6, $calls);
+        self::assertSame([5, 10, 20, 40, 60], $delays);
         self::assertLessThanOrEqual(180, array_sum($delays));
-        self::assertSame(60, $delays[3]);
+        self::assertSame(135, array_sum($delays));
     }
 
     public function testExcessiveRetryAfterAbortsWithoutRetryingPrematurely(): void
@@ -132,9 +128,11 @@ class RateLimitRetryTest extends TestCase
                 return new Response(429, [], '');
             });
             self::fail('Mixed failures exceeded their attempt budget');
-        } catch (RateLimitException $e) {}
-        self::assertSame(5, $calls);
-        self::assertCount(4, $delays);
+        } catch (LocalizedException $e) {
+            self::assertStringContainsString("6 attempts", $e->getMessage());
+        }
+        self::assertSame(6, $calls);
+        self::assertSame([5, 10, 20, 40, 60], $delays);
     }
 
     public function testTransportFailureCanRecoverWithinTheSameBudget(): void

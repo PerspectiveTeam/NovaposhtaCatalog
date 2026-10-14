@@ -157,6 +157,7 @@
         },
         "index": {
             "PERSPECTIVE_NOVAPOSHTA_CATALOG_STREET_ID": true,
+            "PERSPECTIVE_NOVAPOSHTA_CATALOG_STREET_REF": true,
             "PERSPECTIVE_NOVAPOSHTA_CATALOG_STREET_ID_IDX": true,
             "PERSPECTIVE_NOVAPOSHTA_CATALOG_STREET_CITY_REF": true
         },

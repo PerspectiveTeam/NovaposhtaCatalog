@@ -7,6 +7,7 @@ use Magento\Framework\Serialize\SerializerInterface;
 use Perspective\NovaposhtaCatalog\Helper\Config;
 use Perspective\NovaposhtaCatalog\Service\HTTP\AsyncClient\Request;
 use Psr\Log\LoggerInterface;
+use Perspective\NovaposhtaCatalog\Service\SyncMetrics;
 
 class Post
 {
@@ -30,15 +31,17 @@ class Post
      * @param \Psr\Log\LoggerInterface $logger
      * @param \Magento\Framework\Serialize\SerializerInterface $serializer
      * @param \Perspective\NovaposhtaCatalog\Helper\Config $generalHelper
-     * @param \Magento\Framework\HTTP\AsyncClientInterface $asyncClient,
-        private RateLimitRetry $rateLimitRetry
+     * @param \Magento\Framework\HTTP\AsyncClientInterface $asyncClient
+     * @param RateLimitRetry $rateLimitRetry
+     * @param SyncMetrics|null $metrics
      */
     public function __construct(
         LoggerInterface $logger,
         SerializerInterface $serializer,
         Config $generalHelper,
         AsyncClientInterface $asyncClient,
-        private RateLimitRetry $rateLimitRetry
+        private RateLimitRetry $rateLimitRetry,
+        private ?SyncMetrics $metrics = null
     ) {
         $this->logger = $logger;
         $this->serializer = $serializer;
@@ -66,7 +69,10 @@ class Post
     /** Synchronous, rate-limit-aware reads used by directory synchronization. */
     public function getResponse(string $modelName, string $calledMethod, array $params): \Magento\Framework\HTTP\AsyncClient\Response
     {
-        return $this->rateLimitRetry->execute(fn () => $this->execute($modelName, $calledMethod, $params)->get());
+        $request = fn () => $this->rateLimitRetry->execute(
+            fn () => $this->execute($modelName, $calledMethod, $params)->get()
+        );
+        return $this->metrics !== null ? $this->metrics->measure('api', $request) : $request();
     }
 
     /**

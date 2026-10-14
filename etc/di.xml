@@ -240,12 +240,15 @@
     </type>
     <type name="Perspective\NovaposhtaCatalog\Model\Update\Warehouse">
         <arguments>
+            <argument name="cityCollectionFactory" xsi:type="object">Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\CollectionFactory</argument>
+            <argument name="metrics" xsi:type="object">Perspective\NovaposhtaCatalog\Service\SyncMetrics</argument>
             <argument xsi:type="object" name="serializer">Perspective\NovaposhtaCatalog\Service\JsonAsObject</argument>
             <argument xsi:type="object" name="serializerToArray">Magento\Framework\Serialize\Serializer\Json</argument>
         </arguments>
     </type>
     <type name="Perspective\NovaposhtaCatalog\Model\Update\Street">
         <arguments>
+            <argument name="metrics" xsi:type="object">Perspective\NovaposhtaCatalog\Service\SyncMetrics</argument>
             <argument xsi:type="object" name="serializer">Perspective\NovaposhtaCatalog\Service\JsonAsObject</argument>
             <argument xsi:type="object" name="serializerToArray">Magento\Framework\Serialize\Serializer\Json</argument>
         </arguments>
@@ -262,7 +265,22 @@
     </type>
     <type name="Perspective\NovaposhtaCatalog\Service\HTTP\Post">
         <arguments>
+            <argument name="metrics" xsi:type="object">Perspective\NovaposhtaCatalog\Service\SyncMetrics</argument>
             <argument name="asyncClient" xsi:type="object">Perspective\NovaposhtaCatalog\Service\HTTP\AsyncClient\GuzzleAsyncClient</argument>
+        </arguments>
+    </type>
+    <type name="Perspective\NovaposhtaCatalog\Api\Data\UpdateEntityInterface">
+        <plugin name="perspective_novaposhta_catalog_sync_metrics"
+                type="Perspective\NovaposhtaCatalog\Plugin\Update\SyncMetricsPlugin"/>
+    </type>
+    <type name="Perspective\NovaposhtaCatalog\Model\Update\DirectorySnapshot">
+        <arguments>
+            <argument name="metrics" xsi:type="object">Perspective\NovaposhtaCatalog\Service\SyncMetrics</argument>
+        </arguments>
+    </type>
+    <type name="Perspective\NovaposhtaCatalog\Service\HTTP\RateLimitRetry">
+        <arguments>
+            <argument name="metrics" xsi:type="object">Perspective\NovaposhtaCatalog\Service\SyncMetrics</argument>
         </arguments>
     </type>
     <type name="Perspective\NovaposhtaCatalog\Controller\Adminhtml\MassAction\Deactivate">

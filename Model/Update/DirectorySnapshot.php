@@ -8,13 +8,17 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Lock\LockManagerInterface;
 use Magento\Framework\Model\AbstractModel;
 use Magento\Framework\Model\ResourceModel\Db\AbstractDb;
+use Perspective\NovaposhtaCatalog\Service\SyncMetrics;
 
 class DirectorySnapshot
 {
     private array $heldLocks = [];
 
-    public function __construct(private LockManagerInterface $lockManager, private SyncPolicy $policy)
-    {
+    public function __construct(
+        private LockManagerInterface $lockManager,
+        private SyncPolicy $policy,
+        private ?SyncMetrics $metrics = null
+    ) {
     }
 
     public function getResponseData(mixed $response): array
@@ -32,23 +36,46 @@ class DirectorySnapshot
      */
     public function prepare(mixed $data, callable $prepareModel, bool $allowEmpty = false): array
     {
+        return $this->measure('prepare', function () use ($data, $prepareModel, $allowEmpty) {
+            $models = [];
+            foreach ($this->validatedRows($data, $allowEmpty) as $ref => $row) {
+                $models[$ref] = $prepareModel($row);
+            }
+            return $models;
+        });
+    }
+
+    /** Validate responses without constructing Magento models. */
+    public function validate(mixed $data, ?callable $validateRow = null, bool $allowEmpty = false): void
+    {
+        $this->measure('prepare', function () use ($data, $validateRow, $allowEmpty) {
+            foreach ($this->validatedRows($data, $allowEmpty) as $row) {
+                if ($validateRow !== null) {
+                    $validateRow($row);
+                }
+            }
+        });
+    }
+
+    private function validatedRows(mixed $data, bool $allowEmpty): \Generator
+    {
         if (!is_iterable($data)) {
             throw new LocalizedException(__('Nova Poshta returned an invalid directory list, sync aborted.'));
         }
-        $models = [];
+        $seen = [];
         foreach ($data as $row) {
             if (!$this->isValidRow($row)) {
                 throw new LocalizedException(__('Nova Poshta returned an invalid directory record, sync aborted.'));
             }
-            if (isset($models[$row->Ref])) {
+            if (isset($seen[$row->Ref])) {
                 throw new LocalizedException(__('Nova Poshta returned duplicate references, sync aborted.'));
             }
-            $models[$row->Ref] = $prepareModel($row);
+            $seen[$row->Ref] = true;
+            yield $row->Ref => $row;
         }
-        if (!$models && !$allowEmpty) {
+        if (!$seen && !$allowEmpty) {
             throw new LocalizedException(__('Nova Poshta returned an empty directory, sync aborted.'));
         }
-        return $models;
     }
 
     private function isValidRow(mixed $row): bool
@@ -97,38 +124,43 @@ class DirectorySnapshot
     {
         // The legacy fifth argument is retained for callers; all directories now use the safety policy.
         $this->withLock($lockName, function () use ($models, $resource, $getCollection, $lockName, $findExisting) {
-            $existing = [];
-            foreach ($getCollection() as $item) {
-                $ref = $item->getData('ref');
-                if (isset($existing[$ref])) {
-                    throw new LocalizedException(__('Duplicate local Nova Poshta reference in %1; resolve before syncing.', $lockName));
+            $existing = $this->measure('db_read', function () use ($getCollection, $lockName) {
+                $existing = [];
+                foreach ($getCollection() as $item) {
+                    $ref = $item->getData('ref');
+                    if (isset($existing[$ref])) {
+                        throw new LocalizedException(__('Duplicate local Nova Poshta reference in %1; resolve before syncing.', $lockName));
+                    }
+                    $existing[$ref] = $item;
                 }
-                $existing[$ref] = $item;
-            }
+                return $existing;
+            });
             $this->policy->assertAcceptable($existing, $models, $lockName);
 
-            $connection = $resource->getConnection();
-            $connection->beginTransaction();
-            try {
-                foreach ($models as $ref => $model) {
-                    $stored = $existing[$ref] ?? ($findExisting ? $findExisting($ref) : null);
-                    if ($stored !== null) {
-                        $id = $stored->getId();
-                        $model = $stored->addData($model->getData())->setId($id);
-                    }
-                    $this->policy->markPresent($model);
-                    $resource->save($model);
-                }
-                foreach (array_diff_key($existing, $models) as $model) {
-                    if ($this->policy->markMissing($model)) {
+            $this->measure('db_write', function () use ($resource, $existing, $models, $findExisting) {
+                $connection = $resource->getConnection();
+                $connection->beginTransaction();
+                try {
+                    foreach ($models as $ref => $model) {
+                        $stored = $existing[$ref] ?? ($findExisting ? $findExisting($ref) : null);
+                        if ($stored !== null) {
+                            $id = $stored->getId();
+                            $model = $stored->addData($model->getData())->setId($id);
+                        }
+                        $this->policy->markPresent($model);
                         $resource->save($model);
                     }
+                    foreach (array_diff_key($existing, $models) as $model) {
+                        if ($this->policy->markMissing($model)) {
+                            $resource->save($model);
+                        }
+                    }
+                    $connection->commit();
+                } catch (\Throwable $e) {
+                    $connection->rollBack();
+                    throw $e;
                 }
-                $connection->commit();
-            } catch (\Throwable $e) {
-                $connection->rollBack();
-                throw $e;
-            }
+            });
         });
     }
 
@@ -144,20 +176,28 @@ class DirectorySnapshot
         $this->withLock($lockName, function () use ($models, $resource, $createCollection, $cityRef, $lockPrefix, $lockName) {
             // Serialize only DB writes across cities, so resolving a moved Ref cannot create duplicates.
             $this->withLock($lockPrefix . 'write', function () use ($models, $resource, $createCollection, $cityRef, $lockName) {
-                $known = [];
-                if ($models) {
-                    foreach ($createCollection()->addFieldToFilter('ref', ['in' => array_keys($models)]) as $item) {
-                        $ref = $item->getData('ref');
-                        if (isset($known[$ref])) {
-                            throw new LocalizedException(__('Duplicate local Nova Poshta reference; resolve before syncing.'));
+                $known = $this->measure('db_read', function () use ($models, $createCollection) {
+                    $known = [];
+                    if ($models) {
+                        foreach ($createCollection()->addFieldToFilter('ref', ['in' => array_keys($models)]) as $item) {
+                            $ref = $item->getData('ref');
+                            if (isset($known[$ref])) {
+                                throw new LocalizedException(__('Duplicate local Nova Poshta reference; resolve before syncing.'));
+                            }
+                            $known[$ref] = $item;
                         }
-                        $known[$ref] = $item;
                     }
-                }
+                    return $known;
+                });
                 $this->save($models, $resource,
                     fn () => $createCollection()->addFieldToFilter('city_ref', $cityRef),
                     $lockName, true, fn ($ref) => $known[$ref] ?? null);
             });
         });
+    }
+
+    private function measure(string $phase, callable $operation): mixed
+    {
+        return $this->metrics !== null ? $this->metrics->measure($phase, $operation) : $operation();
     }
 }

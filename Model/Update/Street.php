@@ -15,6 +15,7 @@ use Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\CollectionFactor
 use Perspective\NovaposhtaCatalog\Model\ResourceModel\Street\Street\CollectionFactory as StreetCollectionFactory;
 use Perspective\NovaposhtaCatalog\Service\HTTP\Post;
 use Psr\Log\LoggerInterface;
+use Perspective\NovaposhtaCatalog\Service\SyncMetrics;
 
 /**
  * Import Streets from NovaPoshta API
@@ -99,6 +100,8 @@ class Street implements UpdateEntityInterface
 
     private DirectorySnapshot $snapshot;
 
+    private ?SyncMetrics $metrics = null;
+
     /**
      * @param \Perspective\NovaposhtaCatalog\Helper\Config $configHelper
      * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\CollectionFactory $cityCollectionFactory
@@ -123,6 +126,7 @@ class Street implements UpdateEntityInterface
         DirectorySnapshot $snapshot,
         LoggerInterface $logger,
         private PagedDirectory $pages,
+        ?SyncMetrics $metrics = null,
     ) {
 
         $this->cityCollectionFactory = $cityCollectionFactory;
@@ -136,6 +140,7 @@ class Street implements UpdateEntityInterface
         $this->configHelper = $configHelper;
         $this->snapshot = $snapshot;
         $this->logger = $logger;
+        $this->metrics = $metrics;
     }
 
     /**
@@ -185,13 +190,16 @@ class Street implements UpdateEntityInterface
      */
     private function getCityCollection(): \Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\Collection
     {
-        return $this->cityCollectionFactory
+        $collection = $this->cityCollectionFactory
             ->create()
             ->removeAllFieldsFromSelect()
             ->addFieldToSelect(CityInterface::REF)
             ->addFieldToSelect(CityInterface::CITYID)
             ->addFieldToFilter('is_active', 1)
             ->addOrder(CityInterface::CITYID, 'ASC');
+        return $this->metrics !== null
+            ? $this->metrics->measure('db_read', fn () => $collection->load())
+            : $collection;
     }
 
     /**
@@ -243,7 +251,7 @@ class Street implements UpdateEntityInterface
             );
         }, self::PAGE_SIZE);
         $response = $this->serializer->unserialize($this->serializer->serialize(array_merge($streets, ['success' => true])));
-        $this->prepareDataFromNP($response, $cityRef);
+        $this->snapshot->validate($this->getSnapshotRows($response), $this->validateStreetFields(...), true);
         return $response;
     }
 
@@ -281,12 +289,7 @@ class Street implements UpdateEntityInterface
      */
     private function prepareDataFromNP($dataFromEndpoint, $cityRef)
     {
-        if (!is_object($dataFromEndpoint) || ($dataFromEndpoint->success ?? null) !== true) {
-            throw new LocalizedException(__('Nova Poshta streets request failed, sync aborted.'));
-        }
-        $rows = (array)$dataFromEndpoint;
-        unset($rows['success']);
-        return $this->snapshot->prepare($rows, function ($datum) use ($cityRef) {
+        return $this->snapshot->prepare($this->getSnapshotRows($dataFromEndpoint), function ($datum) use ($cityRef) {
             $this->validateStreetFields($datum);
             return $this->streetFactory->create()
                 ->setRef($datum->{self::API_FIELD_REF})
@@ -295,6 +298,16 @@ class Street implements UpdateEntityInterface
                 ->setStreetType($datum->{self::API_FIELD_STREETS_TYPE})
                 ->setCityRef($cityRef);
         }, true);
+    }
+
+    private function getSnapshotRows(mixed $response): array
+    {
+        if (!is_object($response) || ($response->success ?? null) !== true) {
+            throw new LocalizedException(__('Nova Poshta streets request failed, sync aborted.'));
+        }
+        $rows = (array)$response;
+        unset($rows['success']);
+        return $rows;
     }
 
     private function validateStreetFields(object $row): void

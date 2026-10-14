@@ -29,6 +29,9 @@ class StreetTest extends TestCase
     public function testRequiresAllPagesWithConsistentCountsAndUniqueValidRows(string $case): void
     {
         $service = $this->service(['getServicePromise']);
+        $factory = $this->createMock(StreetInterfaceFactory::class);
+        $factory->expects(self::never())->method('create');
+        $this->inject($service, 'streetFactory', $factory);
         $first = array_map(self::row(...), range(0, 499));
         $second = [self::row(500)];
         $total = 501;
@@ -83,6 +86,39 @@ class StreetTest extends TestCase
     public static function executionScenarios(): array
     {
         return [['success'], ['empty'], ['api_failure'], ['save_failure']];
+    }
+
+    public function testFetchDoesNotCreateModelsAndExecuteCreatesEachModelOnce(): void
+    {
+        $service = $this->service(['getServicePromise', 'setDataToDB']);
+        $city = (new \ReflectionClass(City::class))->newInstanceWithoutConstructor()->setRef('city-a');
+        $collection = $this->createStub(Collection::class);
+        foreach (['removeAllFieldsFromSelect', 'addFieldToSelect', 'addOrder', 'addFieldToFilter'] as $method) {
+            $collection->method($method)->willReturnSelf();
+        }
+        $collection->method('getIterator')->willReturn(new \ArrayIterator([$city]));
+        $cityFactory = $this->createStub(CollectionFactory::class);
+        $cityFactory->method('create')->willReturn($collection);
+        $this->inject($service, 'cityCollectionFactory', $cityFactory);
+        $this->inject($service, 'cronSyncDateLastUpdate', $this->createStub(CronSyncDateLastUpdate::class));
+        $service->method('getServicePromise')->willReturn(new Response(200, [], json_encode([
+            'success' => true, 'data' => [self::row(1), self::row(2)], 'info' => ['totalCount' => 2],
+        ])));
+        $factory = $this->createMock(StreetInterfaceFactory::class);
+        $created = 0;
+        $factory->expects(self::exactly(2))->method('create')->willReturnCallback(function () use (&$created) {
+            ++$created;
+            return (new \ReflectionClass(StreetModel::class))->newInstanceWithoutConstructor();
+        });
+        $this->inject($service, 'streetFactory', $factory);
+        $service->getDataFromEndpoint('city-a');
+        self::assertSame(0, $created);
+        $service->expects(self::once())->method('setDataToDB')->willReturnCallback(function ($models, $unused, $cityRef) {
+            self::assertSame(['street-1', 'street-2'], array_keys($models));
+            self::assertSame('city-a', $cityRef);
+        });
+        self::assertFalse($service->execute()['error']);
+        self::assertSame(2, $created);
     }
 
     #[DataProvider('invalidPreparedStreets')]

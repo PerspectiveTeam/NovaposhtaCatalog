@@ -14,12 +14,18 @@ use Perspective\NovaposhtaCatalog\Helper\Config;
 use Perspective\NovaposhtaCatalog\Helper\CronSyncDateLastUpdate;
 use Perspective\NovaposhtaCatalog\Model\Warehouse\WarehouseFactory;
 use Perspective\NovaposhtaCatalog\Service\HTTP\Post;
+use Perspective\NovaposhtaCatalog\Model\ResourceModel\City\City\CollectionFactory as CityCollectionFactory;
+use Perspective\NovaposhtaCatalog\Service\SyncMetrics;
 
 /**
  * Class Warehouse
  */
 class Warehouse implements UpdateEntityInterface
 {
+    private ?CityCollectionFactory $cityCollectionFactory = null;
+
+    private ?SyncMetrics $metrics = null;
+
     /**
      * @var string
      */
@@ -87,11 +93,13 @@ class Warehouse implements UpdateEntityInterface
      * @param \Perspective\NovaposhtaCatalog\Service\HTTP\Post $postService
      * @param \Perspective\NovaposhtaCatalog\Api\CityRepositoryInterface $cityRepository
      * @param \Magento\Framework\Api\SearchCriteriaBuilder $searchCriteriaBuilder
-     * @param \Perspective\NovaposhtaCatalog\Api\WarehouseRepositoryInterface $warehouseRepository,
-        private DirectorySnapshot $snapshot,
-        private PagedDirectory $pages,
-        private \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\CollectionFactory $collectionFactory,
-        private \Psr\Log\LoggerInterface $logger
+     * @param WarehouseRepositoryInterface $warehouseRepository
+     * @param DirectorySnapshot $snapshot
+     * @param PagedDirectory $pages
+     * @param \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\CollectionFactory $collectionFactory
+     * @param \Psr\Log\LoggerInterface $logger
+     * @param CityCollectionFactory|null $cityCollectionFactory
+     * @param SyncMetrics|null $metrics
      */
     public function __construct(
         Config $configHelper,
@@ -107,7 +115,9 @@ class Warehouse implements UpdateEntityInterface
         private DirectorySnapshot $snapshot,
         private PagedDirectory $pages,
         private \Perspective\NovaposhtaCatalog\Model\ResourceModel\Warehouse\Warehouse\CollectionFactory $collectionFactory,
-        private \Psr\Log\LoggerInterface $logger
+        private \Psr\Log\LoggerInterface $logger,
+        ?CityCollectionFactory $cityCollectionFactory = null,
+        ?SyncMetrics $metrics = null
     ) {
         $this->warehouseResourceModel = $warehouseResourceModel;
         $this->warehouseFactory = $warehouseFactory;
@@ -119,6 +129,8 @@ class Warehouse implements UpdateEntityInterface
         $this->searchCriteriaBuilder = $searchCriteriaBuilder;
         $this->serializerToArray = $serializerToArray;
         $this->warehouseRepository = $warehouseRepository;
+        $this->cityCollectionFactory = $cityCollectionFactory;
+        $this->metrics = $metrics;
     }
 
     /**
@@ -132,8 +144,7 @@ class Warehouse implements UpdateEntityInterface
         $data = [];
         if ($this->configHelper->isEnabled()) {
             try {
-                $criteria = $this->searchCriteriaBuilder->addFilter('is_active', 1)->create();
-                $cities = $this->cityRepository->getList($criteria)->getItems();
+                $cities = $this->getCities();
                 foreach ($cities as $city) {
                     $cityRef = $city->getRef();
                     $this->snapshot->withLock('np_warehouses_' . sha1($cityRef), function () use ($cityRef) {
@@ -157,6 +168,22 @@ class Warehouse implements UpdateEntityInterface
         ];
     }
 
+    private function getCities(): array
+    {
+        $read = function () {
+            if ($this->cityCollectionFactory === null) {
+                $criteria = $this->searchCriteriaBuilder->addFilter('is_active', 1)->create();
+                return $this->cityRepository->getList($criteria)->getItems();
+            }
+            return $this->cityCollectionFactory->create()
+                ->removeAllFieldsFromSelect()
+                ->addFieldToSelect(['id', 'ref'])
+                ->addFieldToFilter('is_active', 1)
+                ->getItems();
+        };
+        return $this->metrics !== null ? $this->metrics->measure('db_read', $read) : $read();
+    }
+
     /**
      * @param ...$params
      * @return array|bool|float|int|mixed|string|null
@@ -175,7 +202,11 @@ class Warehouse implements UpdateEntityInterface
             );
         }, self::PAGE_SIZE);
         $response = $this->serializer->unserialize($this->serializer->serialize(array_merge($rows, ['success' => true])));
-        $this->prepareSnapshot($response, $cityRef);
+        $this->snapshot->validate(
+            $this->getSnapshotRows($response),
+            fn ($row) => $this->validateWarehouse($row, $cityRef),
+            true
+        );
         return $response;
     }
 
@@ -201,15 +232,20 @@ class Warehouse implements UpdateEntityInterface
 
     private function prepareSnapshot(mixed $response, string $cityRef): array
     {
+        return $this->snapshot->prepare($this->getSnapshotRows($response), function ($row) use ($cityRef) {
+            $this->validateWarehouse($row, $cityRef);
+            return $this->prepareData($row);
+        }, true);
+    }
+
+    private function getSnapshotRows(mixed $response): array
+    {
         if (!is_object($response) || ($response->success ?? null) !== true) {
             throw new LocalizedException(__('Nova Poshta warehouses request failed, sync aborted.'));
         }
         $rows = (array)$response;
         unset($rows['success']);
-        return $this->snapshot->prepare($rows, function ($row) use ($cityRef) {
-            $this->validateWarehouse($row, $cityRef);
-            return $this->prepareData($row);
-        }, true);
+        return $rows;
     }
 
     private function validateWarehouse(object $row, string $cityRef): void
