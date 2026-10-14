@@ -9,7 +9,7 @@ use Perspective\NovaposhtaCatalog\Helper\Config;
 
 class DirectorySyncMapper
 {
-    private ?array $regionIdToAreaRef = null;
+    private array $regionIdToAreaRef = [];
 
     public function __construct(
         private readonly Config $catalogConfig,
@@ -20,16 +20,17 @@ class DirectorySyncMapper
     /**
      * Returns flat map of {regionId: areaRef} for all configured UA regions.
      */
-    public function getRegionIdToAreaRefMap(): array
+    public function getRegionIdToAreaRefMap(?int $storeId = null): array
     {
-        if ($this->regionIdToAreaRef !== null) {
-            return $this->regionIdToAreaRef;
+        $cacheKey = $storeId ?? 'current';
+        if (array_key_exists($cacheKey, $this->regionIdToAreaRef)) {
+            return $this->regionIdToAreaRef[$cacheKey];
         }
 
-        $this->regionIdToAreaRef = [];
-        $regionToArea = $this->catalogConfig->getDirectoryMap();
+        $map = [];
+        $regionToArea = $this->catalogConfig->getDirectoryMap($storeId);
         if (empty($regionToArea)) {
-            return $this->regionIdToAreaRef;
+            return $this->regionIdToAreaRef[$cacheKey] = [];
         }
 
         $connection = $this->resourceConnection->getConnection();
@@ -43,10 +44,10 @@ class DirectorySyncMapper
             $code = $row['code'];
             $regionId = (int)$row['region_id'];
             if (isset($regionToArea[$code])) {
-                $this->regionIdToAreaRef[$regionId] = $regionToArea[$code];
+                $map[$regionId] = $regionToArea[$code];
             }
         }
 
-        return $this->regionIdToAreaRef;
+        return $this->regionIdToAreaRef[$cacheKey] = $map;
     }
 }

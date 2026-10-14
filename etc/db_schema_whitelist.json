@@ -28,7 +28,14 @@
             "is_active": true,
             "last_seen_at": true,
             "missing_successful_syncs": true,
-            "last_missing_at": true
+            "last_missing_at": true,
+            "source": true,
+            "boxpacker_enabled": true,
+            "max_weight": true,
+            "inner_length": true,
+            "inner_width": true,
+            "inner_height": true,
+            "empty_weight": true
         },
         "constraint": {
             "PRIMARY": true
