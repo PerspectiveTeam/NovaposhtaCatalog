@@ -293,10 +293,4 @@
             <argument name="instanceName" xsi:type="string">Perspective\NovaposhtaCatalog\Model\ResourceModel\Package\Package\ActiveCollection</argument>
         </arguments>
     </virtualType>
-    <!-- Optional Shipping consumer: preserve raw Catalog collections for imports and history. -->
-    <type name="Perspective\NovaposhtaShipping\Helper\Boxpacker">
-        <arguments>
-            <argument name="packageTypesResourceModelCollectionFactory" xsi:type="object">Perspective\NovaposhtaCatalog\ActivePackageCollectionFactory</argument>
-        </arguments>
-    </type>
 </config>

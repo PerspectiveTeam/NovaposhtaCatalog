@@ -154,7 +154,7 @@ class Package implements UpdateEntityInterface
         $this->snapshot->save(
             $models,
             $this->packageResourceModel,
-            fn () => $this->packageTypesResourceModelCollectionFactory->create(),
+            fn () => $this->packageTypesResourceModelCollectionFactory->create()->addFieldToFilter('source', 'api'),
             'perspective_novaposhta_packages_sync'
         );
     }

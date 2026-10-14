@@ -124,6 +124,77 @@ class Package extends \Magento\Framework\Model\AbstractExtensibleModel implement
     {
         return $this->getData(self::PACKAGING_FOR_PLACE);
     }
+
+    public function getSource()
+    {
+        return $this->getData(self::SOURCE) ?? 'api';
+    }
+
+    public function setSource($data)
+    {
+        return $this->setData(self::SOURCE, $data);
+    }
+
+    public function getBoxpackerEnabled()
+    {
+        return $this->getData(self::BOXPACKER_ENABLED) ?? 1;
+    }
+
+    public function setBoxpackerEnabled($data)
+    {
+        return $this->setData(self::BOXPACKER_ENABLED, $data);
+    }
+
+    public function getMaxWeight()
+    {
+        return $this->getData(self::MAX_WEIGHT);
+    }
+
+    public function setMaxWeight($data)
+    {
+        return $this->setData(self::MAX_WEIGHT, $data);
+    }
+
+    public function getInnerLength()
+    {
+        return $this->getData(self::INNER_LENGTH);
+    }
+
+    public function setInnerLength($data)
+    {
+        return $this->setData(self::INNER_LENGTH, $data);
+    }
+
+    public function getInnerWidth()
+    {
+        return $this->getData(self::INNER_WIDTH);
+    }
+
+    public function setInnerWidth($data)
+    {
+        return $this->setData(self::INNER_WIDTH, $data);
+    }
+
+    public function getInnerHeight()
+    {
+        return $this->getData(self::INNER_HEIGHT);
+    }
+
+    public function setInnerHeight($data)
+    {
+        return $this->setData(self::INNER_HEIGHT, $data);
+    }
+
+    public function getEmptyWeight()
+    {
+        return $this->getData(self::EMPTY_WEIGHT) ?? 0;
+    }
+
+    public function setEmptyWeight($data)
+    {
+        return $this->setData(self::EMPTY_WEIGHT, $data);
+    }
+
     public function getCustomAttributesCodes()
     {
         if (!defined('PHP_VERSION_ID') || PHP_VERSION_ID < 80000) {

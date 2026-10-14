@@ -38,6 +38,13 @@
                 comment="Separated Missing Confirmations"/>
         <column xsi:type="datetime" name="last_missing_at" nullable="true"
                 comment="Last Counted Missing Confirmation UTC"/>
+        <column xsi:type="varchar" name="source" length="16" nullable="false" default="api" comment="Package Origin"/>
+        <column xsi:type="smallint" name="boxpacker_enabled" unsigned="true" nullable="false" default="1" comment="Enabled for BoxPacker"/>
+        <column xsi:type="decimal" name="max_weight" precision="12" scale="3" unsigned="true" nullable="true" comment="Maximum Gross Weight KG"/>
+        <column xsi:type="decimal" name="inner_length" precision="12" scale="3" unsigned="true" nullable="true" comment="Inner Length MM"/>
+        <column xsi:type="decimal" name="inner_width" precision="12" scale="3" unsigned="true" nullable="true" comment="Inner Width MM"/>
+        <column xsi:type="decimal" name="inner_height" precision="12" scale="3" unsigned="true" nullable="true" comment="Inner Height MM"/>
+        <column xsi:type="decimal" name="empty_weight" precision="12" scale="3" unsigned="true" nullable="false" default="0" comment="Empty Package Weight KG"/>
         <constraint xsi:type="primary" referenceId="PRIMARY">
             <column name="id"/>
         </constraint>
